@@ -2,15 +2,29 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.title("Customer Segmentation Dashboard")
+st.title("AI Customer Segmentation System")
 
-if os.path.exists("outputs/customer_segments.csv"):
-    df = pd.read_csv("outputs/customer_segments.csv")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+output_path = os.path.join(BASE_DIR, "outputs", "customer_segments.csv")
 
-    st.write("Customer Segments Preview")
-    st.dataframe(df.head())
+if os.path.exists(output_path):
 
-    st.write("Cluster Distribution")
+    df = pd.read_csv(output_path)
+
+    st.success("Segmentation Results Loaded")
+
+    st.subheader("Customer Data")
+    st.dataframe(df)
+
+    st.subheader("Cluster Distribution")
     st.bar_chart(df["Cluster"].value_counts())
+
+    st.subheader("Churn Risk Customers")
+
+    if "Churn" in df.columns:
+        st.dataframe(df[df["Churn"] == 1])
+
 else:
-    st.warning("No output found. Run pipeline first.")
+
+    st.warning("No segmentation results found.")
+    st.info("Run the ML pipeline to generate outputs.")
