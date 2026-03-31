@@ -1,0 +1,6 @@
+{
+  "customer_id": ["customerid", "user_id", "client_id"],
+  "transaction_date": ["invoicedate", "order_date"],
+  "price": ["unitprice", "price", "amount"],
+  "quantity": ["quantity", "qty"]
+}
