@@ -1,6 +1,14 @@
-import shap
+def explain_customer(row):
 
-def explain(model, X):
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X)
-    return shap_values
+    reasons = []
+
+    if row["Recency"] > 60:
+        reasons.append("Inactive customer")
+
+    if row["Frequency"] < 2:
+        reasons.append("Low purchase frequency")
+
+    if row["Monetary"] < 100:
+        reasons.append("Low spending")
+
+    return ", ".join(reasons)

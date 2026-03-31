@@ -1,8 +1,5 @@
-def detect_drift(old_rfm, new_rfm):
+def detect_drift(old_mean, new_mean):
 
-    change = (new_rfm.mean() - old_rfm.mean()) / old_rfm.mean() * 100
+    change = ((new_mean - old_mean) / old_mean) * 100
 
-    if change["Frequency"] < -10:
-        return True
-
-    return False
+    return change < -10
