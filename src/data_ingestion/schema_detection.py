@@ -1,2 +1,10 @@
 def detect_columns(df):
-    return {col: 'numeric' if df[col].dtype in ['int64', 'float64'] else 'string' for col in df.columns}
+    """
+    Map Online_Retail dataset columns to standard names.
+    """
+    return {
+        'customer_id': 'CustomerID',
+        'transaction_date': 'InvoiceDate',
+        'quantity': 'Quantity',
+        'price': 'UnitPrice'
+    }
