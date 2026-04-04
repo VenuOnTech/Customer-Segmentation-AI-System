@@ -1,3 +1,22 @@
-clusters: 4
-churn_threshold: 90
-mode: lite
+# ML Pipeline Configuration
+
+clustering:
+  algorithm: "kmeans"
+  n_clusters: 4
+  random_state: 42
+  n_init: 10
+
+churn:
+  threshold_days: 90
+  model_type: "random_forest"
+  
+rfm:
+  recency_weight: 1.0
+  frequency_weight: 1.0
+  monetary_weight: 1.0
+
+monitoring:
+  drift_threshold: -10  # percentage change
+  enable_drift_detection: true
+  
+mode: "lite"  # lite or full

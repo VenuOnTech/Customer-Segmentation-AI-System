@@ -1,5 +1,44 @@
+# Python
 __pycache__/
 *.pyc
-*.pkl
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Models and outputs
 models/v*/
 outputs/
+*.pkl
+*.joblib
+
+# Data
+data/raw/
+data/processed/
+*.csv
+*.xlsx
+!config/*.json
+
+# Environment
+.venv/
+venv/
+ENV/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/cache/
+
+# Logs
+*.log
+logs/
