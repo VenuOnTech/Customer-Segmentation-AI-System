@@ -100,9 +100,17 @@ def test_data_cleaning():
         
         df_clean = clean_data(df, mapping)
         
-        assert len(df_clean) == 2, f"Expected 2 rows after cleaning, got {len(df_clean)}"
+        # After cleaning:
+        # Row 1: Keep (all valid)
+        # Row 2: Keep (all valid)
+        # Row 3: Keep (all valid)
+        # Row 4: Remove (negative quantity)
+        # Row 5: Remove (null CustomerID + negative price)
+        # Expected: 3 rows
+        assert len(df_clean) == 3, f"Expected 3 rows after cleaning, got {len(df_clean)}"
         assert df_clean['Quantity'].min() > 0, "Found non-positive quantity"
         assert df_clean['UnitPrice'].min() > 0, "Found non-positive price"
+        assert df_clean['CustomerID'].isnull().sum() == 0, "Found null CustomerID"
         
         print("✅ Data cleaning test passed")
         return True

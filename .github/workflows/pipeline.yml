@@ -35,7 +35,7 @@ jobs:
     - name: Run tests
       run: |
         echo "Running unit tests..."
-        python -m pytest tests/ -v || python tests/test_pipeline.py
+        python tests/test_pipeline.py
     
     - name: Run ML pipeline
       run: |
