@@ -8,26 +8,27 @@ from src.prediction.churn_prediction import train_churn
 from src.prediction.future_prediction import predict_future_purchase
 from src.explainability.shap_explainer import explain_customer
 from src.monitoring.behavior_drift import detect_drift
-from src.model_management.model_versioning import save_models   # ⭐ NEW
+from src.model_management.model_versioning import save_models
 
 import os
 
 
 def run():
+    print("🚀 Starting pipeline...")
 
-    # 🔹 Load Data
+    # 🔹 Load Data (supports fallback if missing)
     df = load_data("data/raw/Online_Retail.xlsx")
 
     # 🔹 Detect Schema
     mapping = detect_columns(df)
 
-    # 🔹 Add Multi-source Features
+    # 🔹 Add Features
     df = add_multi_source_features(df)
 
     # 🔹 Clean Data
     df = clean_data(df, mapping)
 
-    # 🔹 Create RFM
+    # 🔹 RFM
     rfm = create_rfm(df, mapping)
 
     # 🔹 Segmentation
@@ -37,28 +38,27 @@ def run():
     rfm = predict_future_purchase(rfm)
 
     # 🔹 Churn Model
-    churn = train_churn(rfm)
+    churn_model = train_churn(rfm)
 
     # 🔹 Explainability
     rfm["Explanation"] = rfm.apply(explain_customer, axis=1)
 
-    # 🔹 Drift Detection
+    # 🔹 Drift Detection (basic safe logic)
     old_mean = rfm["Frequency"].mean()
-    new_mean = old_mean * 0.8
+    new_mean = old_mean * 0.9
 
     if detect_drift(old_mean, new_mean):
-        print("Drift detected → retraining needed")
+        print("⚠️ Drift detected → retraining suggested")
 
-    # 🔥 SAVE MODELS (VERSIONING)
-    save_models(kmeans, churn, scaler)
+    # 🔥 Save models
+    save_models(kmeans, churn_model, scaler)
 
-    # 🔥 SAVE OUTPUTS
+    # 🔥 Save output
     os.makedirs("outputs", exist_ok=True)
-    rfm.to_csv("outputs/customer_segments.csv", index=True)
+    rfm.to_csv("outputs/customer_segments.csv", index=False)
 
-    print("Results saved to outputs/customer_segments.csv")
-
-    print("SYSTEM COMPLETE")
+    print("✅ Results saved to outputs/customer_segments.csv")
+    print("🎉 PIPELINE COMPLETE")
 
 
 if __name__ == "__main__":

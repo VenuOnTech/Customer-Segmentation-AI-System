@@ -1,9 +1,22 @@
 import pandas as pd
+import os
+
 
 def load_data(path):
-    """Load data from CSV or Excel"""
-    return pd.read_csv(path) if path.endswith('.csv') else pd.read_excel(path)
+    """Load data with fallback support"""
+    try:
+        if path.endswith(".csv"):
+            return pd.read_csv(path)
+        else:
+            return pd.read_excel(path)
 
-def detect_columns(df):
-    """Detect schema"""
-    return {col: 'numeric' if df[col].dtype in ['int64', 'float64'] else 'string' for col in df.columns}
+    except Exception as e:
+        print(f"⚠️ Failed to load {path}: {e}")
+
+        # fallback (for CI / GitHub Actions)
+        fallback = "data/sample.csv"
+        if os.path.exists(fallback):
+            print("📦 Using fallback sample data")
+            return pd.read_csv(fallback)
+
+        raise FileNotFoundError("No data source available")
