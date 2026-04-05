@@ -10,7 +10,7 @@
 
 **An enterprise-grade AI system for intelligent customer segmentation, churn prediction, and behavioral analysis using advanced machine learning techniques.**
 
-[Live Dashboard](https://customer-segmentation-ai-system-p32hlqpvrgdyl2j63fbhgw.streamlit.app/) • [GitHub Issues](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/issues) • [Releases](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases)
+[Live Dashboard](https://customer-segmentation-ai-system-xqev9fmhnpgwe6vp2kgz2b.streamlit.app/) • [GitHub Issues](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/issues) • [Releases](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases)
 
 </div>
 
@@ -147,7 +147,7 @@ streamlit run app/dashboard.py
 ### For Cloud Deployment (No Installation)  
 
 Visit the live dashboard:
-https://customer-segmentation-ai-system-p32hlqpvrgdyl2j63fbhgw.streamlit.app/
+https://customer-segmentation-ai-system-xqev9fmhnpgwe6vp2kgz2b.streamlit.app/
 
 The dashboard automatically downloads and visualizes the latest results from GitHub releases.
 
