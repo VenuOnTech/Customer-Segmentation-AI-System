@@ -32,21 +32,41 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
+    - name: Download dataset from GitHub Release
+      run: |
+        mkdir -p data/raw
+        echo "📥 Downloading Online_Retail.xlsx from GitHub Release..."
+        
+        # Download from GitHub Release Assets
+        curl -L -o data/raw/Online_Retail.xlsx \
+          "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx"
+        
+        # Verify download
+        if [ -f "data/raw/Online_Retail.xlsx" ]; then
+          echo "✅ Dataset downloaded successfully"
+          ls -lh data/raw/Online_Retail.xlsx
+        else
+          echo "❌ Failed to download dataset"
+          exit 1
+        fi
+    
     - name: Run tests
       run: |
-        echo "Running unit tests..."
+        echo "🧪 Running unit tests..."
         python tests/test_pipeline.py
     
     - name: Run ML pipeline
       run: |
-        echo "Starting ML pipeline execution..."
+        echo "🚀 Starting ML pipeline with REAL data..."
         python main.py
     
     - name: Verify outputs
       run: |
         if [ -f "outputs/customer_segments.csv" ]; then
-          echo "✅ Pipeline completed successfully"
+          echo "✅ Pipeline completed successfully with REAL data!"
+          echo "📈 Output statistics:"
           wc -l outputs/customer_segments.csv
+          head -3 outputs/customer_segments.csv
         else
           echo "❌ Pipeline failed - outputs not generated"
           exit 1
@@ -69,10 +89,14 @@ jobs:
         path: models/
         retention-days: 30
     
-    - name: Upload test logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-logs
-        path: tests/
-        retention-days: 7
+    - name: Pipeline Success Summary
+      if: success()
+      run: |
+        echo "=========================================="
+        echo "✅ ML PIPELINE EXECUTED SUCCESSFULLY"
+        echo "=========================================="
+        echo "✅ Data: Real Online Retail Dataset"
+        echo "✅ Tests: All passed"
+        echo "✅ Models: Trained & Versioned"
+        echo "✅ Outputs: Generated"
+        echo "=========================================="
