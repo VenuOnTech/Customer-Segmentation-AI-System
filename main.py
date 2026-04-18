@@ -6,12 +6,13 @@ from src.feature_engineering.multi_source_features import add_multi_source_featu
 from src.segmentation.kmeans_segmentation import run_kmeans
 from src.prediction.churn_prediction import train_churn
 from src.prediction.future_prediction import predict_future_purchase
-from src.explainability.shap_explainer import explain_customer, generate_shap_explanations
+from src.explainability.shap_explainer import generate_shap_explanations
 from src.monitoring.behavior_drift import detect_drift
-from src.model_management.model_versioning import save_models   # ⭐ NEW
+from src.model_management.model_versioning import save_models
 from src.utils.config_loader import load_config
-import numpy as np
+from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
 
+import numpy as np
 import os
 
 
@@ -41,11 +42,11 @@ def run():
     rfm = predict_future_purchase(rfm)
 
     # 🔹 Churn Model
-    churn = train_churn(rfm)
+    churn_model = train_churn(rfm)
 
     # 🔹 Explainability
     X_explain = rfm[["Frequency", "Monetary"]]
-    rfm["Explanation"] = generate_shap_explanations(churn, X_explain)
+    rfm["Explanation"] = generate_shap_explanations(churn_model, X_explain)
 
     # 🔹 Drift Detection
     old_data = rfm["Frequency"]
@@ -56,13 +57,22 @@ def run():
         print("Drift detected → retraining needed")
 
     # 🔥 SAVE MODELS (VERSIONING)
-    save_models(kmeans, churn, scaler)
+    save_models(kmeans, churn_model, scaler)
 
     # 🔥 SAVE OUTPUTS
     os.makedirs("outputs", exist_ok=True)
-    rfm.to_csv("outputs/customer_segments.csv", index=True)
+    output_path = "outputs/customer_segments.csv"
+    rfm.to_csv(output_path, index=True)
 
     print("Results saved to outputs/customer_segments.csv")
+
+    # 🔁 FEEDBACK LOOP
+    feedback_df = collect_feedback(output_path)
+
+    X_feedback = feedback_df[["Recency", "Frequency", "Monetary"]]
+    y_feedback = feedback_df["Actual_Churn"]
+
+    churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
 
     print("SYSTEM COMPLETE")
 
