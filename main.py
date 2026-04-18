@@ -16,6 +16,8 @@ import os
 
 def run():
 
+    config = load_config()
+    
     # 🔹 Load Data
     df = load_data("data/raw/Online_Retail.xlsx")
 
@@ -65,4 +67,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-    config = load_config()
