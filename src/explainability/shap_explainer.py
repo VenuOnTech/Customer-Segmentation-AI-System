@@ -8,9 +8,8 @@ def generate_shap_explanations(model, X):
 
     explanations = []
 
-    # ✅ Handle different SHAP output formats
+    # Handle different SHAP formats
     if isinstance(shap_values, list):
-        # Binary classification → take class 1
         shap_array = shap_values[1]
     else:
         shap_array = shap_values
@@ -18,7 +17,12 @@ def generate_shap_explanations(model, X):
     for i in range(len(X)):
         values = shap_array[i]
 
-        feature_impact = dict(zip(X.columns, values))
+        # ✅ FIX: force 1D + scalar values
+        values = np.array(values).flatten()
+
+        feature_impact = {
+            col: float(val) for col, val in zip(X.columns, values)
+        }
 
         top_features = sorted(
             feature_impact.items(),
@@ -35,6 +39,5 @@ def generate_shap_explanations(model, X):
     return explanations
 
 
-# ✅ Keep this for test compatibility
 def explain_customer(row):
     return f"Customer with Frequency={row.get('Frequency', 'NA')} and Monetary={row.get('Monetary', 'NA')}"
