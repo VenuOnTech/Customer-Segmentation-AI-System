@@ -9,6 +9,7 @@ from src.prediction.future_prediction import predict_future_purchase
 from src.explainability.shap_explainer import explain_customer, generate_shap_explanations
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models   # ⭐ NEW
+from src.utils.config_loader import load_config
 
 import os
 
@@ -31,7 +32,7 @@ def run():
     rfm = create_rfm(df, mapping)
 
     # 🔹 Segmentation
-    rfm, kmeans, scaler = run_kmeans(rfm)
+    rfm, kmeans, scaler = run_kmeans(rfm, config)
 
     # 🔹 Future Prediction
     rfm = predict_future_purchase(rfm)
@@ -64,3 +65,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+    config = load_config()

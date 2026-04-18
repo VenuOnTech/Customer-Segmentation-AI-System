@@ -1,15 +1,11 @@
-import numpy as np
+from scipy.stats import ks_2samp
 
-def detect_drift(old_series, new_series):
+def detect_drift(old_data, new_data):
 
-    old_mean = np.mean(old_series)
-    new_mean = np.mean(new_series)
+    stat, p_value = ks_2samp(old_data, new_data)
 
-    if old_mean == 0:
-        return False
+    print(f"KS Statistic: {stat}")
+    print(f"P-value: {p_value}")
 
-    change = ((new_mean - old_mean) / old_mean) * 100
-
-    print(f"Drift change: {round(change,2)}%")
-
-    return abs(change) > 10
+    # If distributions differ significantly
+    return p_value < 0.05
