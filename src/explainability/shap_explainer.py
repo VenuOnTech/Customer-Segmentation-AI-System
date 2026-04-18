@@ -1,5 +1,5 @@
 import shap
-import pandas as pd
+import numpy as np
 
 def generate_shap_explanations(model, X):
 
@@ -8,8 +8,17 @@ def generate_shap_explanations(model, X):
 
     explanations = []
 
+    # ✅ Handle different SHAP output formats
+    if isinstance(shap_values, list):
+        # Binary classification → take class 1
+        shap_array = shap_values[1]
+    else:
+        shap_array = shap_values
+
     for i in range(len(X)):
-        feature_impact = dict(zip(X.columns, shap_values[1][i]))
+        values = shap_array[i]
+
+        feature_impact = dict(zip(X.columns, values))
 
         top_features = sorted(
             feature_impact.items(),
@@ -26,11 +35,6 @@ def generate_shap_explanations(model, X):
     return explanations
 
 
-# ✅ BACKWARD COMPATIBILITY (Fix for tests)
+# ✅ Keep this for test compatibility
 def explain_customer(row):
-    """
-    Temporary wrapper to satisfy unit tests.
-    Returns a simple explanation string.
-    """
-
     return f"Customer with Frequency={row.get('Frequency', 'NA')} and Monetary={row.get('Monetary', 'NA')}"
