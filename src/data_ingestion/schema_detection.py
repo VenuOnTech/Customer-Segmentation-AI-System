@@ -24,33 +24,27 @@ def get_fallback_mapping(df):
 
 
 def detect_columns(df):
-    mapping = {}
-    confidence = 0
+    column_map = {}
 
-    for col in df.columns:
-        col_lower = col.lower()
+    # Normalize column names
+    cols = {col.lower(): col for col in df.columns}
 
-        if "customer" in col_lower:
-            mapping["customer_id"] = col
-            confidence += 1
-        elif "date" in col_lower:
-            mapping["invoice_date"] = col
-            confidence += 1
-        elif "quantity" in col_lower:
-            mapping["quantity"] = col
-            confidence += 1
-        elif "price" in col_lower:
-            mapping["price"] = col
-            confidence += 1
+    # Mapping logic
+    column_map["customer_id"] = cols.get("customerid")
+    column_map["invoice_date"] = cols.get("invoicedate")
+    column_map["quantity"] = cols.get("quantity")
+    column_map["price"] = cols.get("unitprice")
 
-    confidence_score = confidence / 4
+    # 🔹 Confidence calculation
+    found = sum(v is not None for v in column_map.values())
+    confidence = found / 4
+    print(f"Schema detection confidence: {confidence:.2f}")
 
-    print(f"Schema detection confidence: {confidence_score:.2f}")
+    # 🔹 STRICT VALIDATION (important fix)
+    missing = [k for k, v in column_map.items() if v is None]
 
-    if confidence_score < 0.75:
-        print("⚠️ Low confidence in schema detection")
+    if missing:
+        print(f"❌ Missing required columns: {missing}")
+        raise ValueError(f"Missing required columns: {missing}")
 
-    if not validate_schema(mapping):
-        mapping = get_fallback_mapping(df)
-
-    return mapping
+    return column_map
