@@ -10,6 +10,7 @@ from src.explainability.shap_explainer import explain_customer, generate_shap_ex
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models   # ⭐ NEW
 from src.utils.config_loader import load_config
+import yaml
 
 import os
 
