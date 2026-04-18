@@ -2,12 +2,14 @@ from sklearn.ensemble import RandomForestClassifier
 
 def train_churn(rfm):
 
+    # Define churn (target)
     rfm["Churn"] = (rfm["Recency"] > 90).astype(int)
 
-    X = rfm[["Recency","Frequency","Monetary","Cluster"]]
+    # ❗ FIX: Remove Cluster (leakage) & avoid direct dependency
+    X = rfm[["Frequency", "Monetary"]]  
     y = rfm["Churn"]
 
-    model = RandomForestClassifier()
-    model.fit(X,y)
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X, y)
 
     return model

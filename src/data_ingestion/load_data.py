@@ -6,4 +6,7 @@ def load_data(path):
 
 def detect_columns(df):
     """Detect schema"""
-    return {col: 'numeric' if df[col].dtype in ['int64', 'float64'] else 'string' for col in df.columns}
+    return {
+        col: 'numeric' if df[col].dtype in ['int64', 'float64'] else 'string'
+        for col in df.columns
+    }

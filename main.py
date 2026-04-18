@@ -40,13 +40,14 @@ def run():
     churn = train_churn(rfm)
 
     # 🔹 Explainability
-    rfm["Explanation"] = rfm.apply(explain_customer, axis=1)
+    X_explain = rfm[["Frequency", "Monetary"]]
+    rfm["Explanation"] = generate_shap_explanations(churn, X_explain)
 
     # 🔹 Drift Detection
-    old_mean = rfm["Frequency"].mean()
-    new_mean = old_mean * 0.8
+    old_data = rfm["Frequency"]
+    new_data = rfm["Frequency"] * 0.95  # Simulate drift
 
-    if detect_drift(old_mean, new_mean):
+    if detect_drift(old_data, new_data):
         print("Drift detected → retraining needed")
 
     # 🔥 SAVE MODELS (VERSIONING)

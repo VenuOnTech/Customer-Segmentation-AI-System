@@ -1,40 +1,26 @@
-"""
-SHAP Explainer for customer segmentation
-"""
+import shap
+import pandas as pd
 
-def explain_customer(row):
-    """
-    Generate explanations for customer behavior based on RFM metrics.
-    
-    Args:
-        row: DataFrame row with customer RFM values
-        
-    Returns:
-        String with explanation reasons
-    """
-    
-    reasons = []
-    
-    # Check recency (days since last purchase)
-    if row["Recency"] > 90:
-        reasons.append("Inactive customer (>90 days)")
-    elif row["Recency"] > 60:
-        reasons.append("Low activity (>60 days)")
-    
-    # Check frequency (purchase count)
-    if row["Frequency"] < 2:
-        reasons.append("Low purchase frequency")
-    elif row["Frequency"] < 5:
-        reasons.append("Moderate frequency")
-    
-    # Check monetary (total spending)
-    if row["Monetary"] < 50:
-        reasons.append("Low spending (<$50)")
-    elif row["Monetary"] < 100:
-        reasons.append("Low spending (<$100)")
-    
-    # No reasons = good customer
-    if not reasons:
-        reasons.append("Loyal, active customer")
-    
-    return ", ".join(reasons)
+def generate_shap_explanations(model, X):
+
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X)
+
+    explanations = []
+
+    for i in range(len(X)):
+        feature_impact = dict(zip(X.columns, shap_values[1][i]))
+
+        top_features = sorted(
+            feature_impact.items(),
+            key=lambda x: abs(x[1]),
+            reverse=True
+        )[:2]
+
+        explanation = ", ".join(
+            [f"{feat} impact: {round(val, 2)}" for feat, val in top_features]
+        )
+
+        explanations.append(explanation)
+
+    return explanations
