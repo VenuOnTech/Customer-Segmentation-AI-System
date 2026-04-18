@@ -10,7 +10,7 @@ from src.explainability.shap_explainer import explain_customer, generate_shap_ex
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models   # ⭐ NEW
 from src.utils.config_loader import load_config
-import yaml
+import numpy as np
 
 import os
 
@@ -49,7 +49,8 @@ def run():
 
     # 🔹 Drift Detection
     old_data = rfm["Frequency"]
-    new_data = rfm["Frequency"] * 0.95  # Simulate drift
+    noise = np.random.normal(0, 0.01, len(rfm))
+    new_data = rfm["Frequency"] * (1 + noise)
 
     if detect_drift(old_data, new_data):
         print("Drift detected → retraining needed")

@@ -4,18 +4,25 @@ from sklearn.metrics import silhouette_score
 
 def find_optimal_k(X_scaled, max_k=8):
 
-    best_k = 2
-    best_score = -1
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+
+    scores = {}
 
     for k in range(2, max_k + 1):
         model = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = model.fit_predict(X_scaled)
 
         score = silhouette_score(X_scaled, labels)
+        scores[k] = score
 
-        if score > best_score:
-            best_score = score
-            best_k = k
+        print(f"K={k}, Silhouette Score={score:.4f}")
+
+    best_k = max(scores, key=scores.get)
+
+    if best_k == 2:
+        print("⚠️ K=2 selected, adjusting to 3 for better segmentation")
+        best_k = 3
 
     return best_k
 
