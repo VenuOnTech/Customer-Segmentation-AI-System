@@ -27,20 +27,27 @@ def detect_columns(df):
     column_map = {}
 
     # Normalize column names
-    cols = {col.lower(): col for col in df.columns}
+    cols = {col.lower().replace(" ", "").replace("_", ""): col for col in df.columns}
 
-    # Mapping logic
-    column_map["customer_id"] = cols.get("customerid")
-    column_map["invoice_date"] = cols.get("invoicedate")
-    column_map["quantity"] = cols.get("quantity")
-    column_map["price"] = cols.get("unitprice")
+    def find_col(possible_names):
+        for name in possible_names:
+            key = name.lower().replace(" ", "").replace("_", "")
+            if key in cols:
+                return cols[key]
+        return None
 
-    # 🔹 Confidence calculation
+    # 🔹 Robust mapping
+    column_map["customer_id"] = find_col(["customerid", "customer_id"])
+    column_map["transaction_date"] = find_col(["invoicedate", "invoice_date", "date"])
+    column_map["quantity"] = find_col(["quantity", "qty"])
+    column_map["price"] = find_col(["unitprice", "price"])
+
+    # 🔹 Confidence
     found = sum(v is not None for v in column_map.values())
     confidence = found / 4
     print(f"Schema detection confidence: {confidence:.2f}")
 
-    # 🔹 STRICT VALIDATION (important fix)
+    # 🔹 Strict validation
     missing = [k for k, v in column_map.items() if v is None]
 
     if missing:
