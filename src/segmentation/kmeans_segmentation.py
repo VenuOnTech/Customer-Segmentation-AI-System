@@ -1,3 +1,5 @@
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 
 def find_optimal_k(X_scaled, max_k=8):
