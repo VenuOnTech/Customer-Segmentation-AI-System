@@ -6,7 +6,7 @@ from src.feature_engineering.multi_source_features import add_multi_source_featu
 from src.segmentation.kmeans_segmentation import run_kmeans
 from src.prediction.churn_prediction import train_churn
 from src.prediction.future_prediction import predict_future_purchase
-from src.explainability.shap_explainer import explain_customer
+from src.explainability.shap_explainer import explain_customer, generate_shap_explanations
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models   # ⭐ NEW
 
