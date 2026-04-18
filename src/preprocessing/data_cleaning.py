@@ -1,20 +1,24 @@
 def clean_data(df, mapping):
 
-    df_clean = df.copy()
+    initial_rows = len(df)
 
-    print(f"Initial row count: {len(df_clean)}")
+    # Track reasons
+    null_customer = df[mapping["customer_id"]].isnull().sum()
+    null_price = df[mapping["price"]].isnull().sum()
+    negative_quantity = (df[mapping["quantity"]] <= 0).sum()
 
-    key_cols = list(mapping.values())
-    df_clean = df_clean.dropna(subset=key_cols)
+    print(f"Initial row count: {initial_rows}")
+    print(f"Dropping null CustomerID rows: {null_customer}")
+    print(f"Dropping null Price rows: {null_price}")
+    print(f"Dropping negative Quantity rows: {negative_quantity}")
 
-    quantity_col = mapping['quantity']
-    df_clean = df_clean[df_clean[quantity_col] > 0]
+    # Apply cleaning
+    df = df.dropna(subset=[mapping["customer_id"], mapping["price"]])
+    df = df[df[mapping["quantity"]] > 0]
 
-    price_col = mapping['price']
-    df_clean = df_clean[df_clean[price_col] > 0]
+    final_rows = len(df)
 
-    df_clean = df_clean.drop_duplicates()
+    print(f"Final row count: {final_rows}")
+    print(f"Total rows removed: {initial_rows - final_rows}")
 
-    print(f"Final row count: {len(df_clean)}")
-
-    return df_clean.reset_index(drop=True)
+    return df
