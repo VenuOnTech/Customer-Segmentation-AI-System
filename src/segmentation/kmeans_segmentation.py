@@ -20,8 +20,7 @@ def find_optimal_k(X_scaled, max_k=8):
 
     best_k = max(scores, key=scores.get)
 
-    if best_k == 2:
-        print("⚠️ K=2 selected, adjusting to 3 for better segmentation")
+    if best_k == 2 and scores[3] > 0.55:
         best_k = 3
 
     return best_k
