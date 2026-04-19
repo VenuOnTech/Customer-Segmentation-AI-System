@@ -15,6 +15,7 @@ from src.monitoring.data_quality import generate_data_quality_report
 from src.monitoring.data_validation import validate_data
 from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
+from src.feature_engineering.temporal_features import add_temporal_features
 
 import json
 import numpy as np
@@ -46,6 +47,9 @@ def run():
     # 🔹 Clean Data
     df = clean_data(df, mapping)
     
+    # 🔹 Add Temporal Features
+    temporal_features = add_temporal_features(df, mapping)
+    
     data_version = get_data_version(df)
     print(f"Data Version: {data_version}")
 
@@ -54,6 +58,8 @@ def run():
 
     # 🔹 Create RFM
     rfm = create_rfm(df, mapping)
+    
+    rfm = rfm.merge(temporal_features, on=mapping["customer_id"], how="left")
 
     # 🔹 Segmentation
     rfm, kmeans, scaler = run_kmeans(rfm, config)
