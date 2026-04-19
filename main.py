@@ -27,7 +27,7 @@ from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
-from src.explainability.feature_importance_explainer import generate_feature_importance
+from src.explainability.feature_importance_explainer import generate_feature_importance_explanations
 
 
 def run():
@@ -84,12 +84,26 @@ def run():
     churn_model, churn_metrics = train_deep_churn(rfm)
 
     # ==============================
-    # 🔹 EXPLAINABILITY (SAFE)
+    # 🔍 EXPLAINABILITY (SAFE MODE)
     # ==============================
 
-    X_explain = rfm.select_dtypes(include=["number"]).drop(columns=["Cluster"], errors="ignore")
+    EXPLAIN_SAMPLE_SIZE = 1000
 
-    rfm["Explanation"] = generate_feature_importance(churn_model, X_explain)
+    if len(rfm) > EXPLAIN_SAMPLE_SIZE:
+        print(f"⚠️ Sampling for explanations: {len(rfm)} → {EXPLAIN_SAMPLE_SIZE}")
+        explain_df = rfm.sample(EXPLAIN_SAMPLE_SIZE, random_state=42)
+    else:
+        explain_df = rfm
+
+    X_explain = explain_df[["Frequency", "Monetary"]]
+
+    explanations = generate_feature_importance_explanations(
+        churn_model,
+        X_explain
+    )
+
+    rfm["Explanation"] = "Not computed"
+    rfm.loc[explain_df.index, "Explanation"] = explanations
 
     print("✅ Feature importance explanations generated")
 
