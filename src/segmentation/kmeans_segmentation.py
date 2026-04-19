@@ -31,13 +31,21 @@ def run_kmeans(rfm, config):
     from sklearn.cluster import KMeans
     from sklearn.preprocessing import StandardScaler
 
-    numeric_cols = ['Recency', 'Frequency', 'Monetary']
-    X = rfm[numeric_cols].copy()
+    # 🔹 Use ALL numeric features (including engineered ones)
+    X = rfm.select_dtypes(include=['number']).copy()
 
+    # 🔹 Remove target/label columns if present
+    if "Cluster" in X.columns:
+        X = X.drop(columns=["Cluster"])
+
+    # 🔹 Handle missing values
+    X = X.fillna(0)
+
+    # 🔹 Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # ✅ Adaptive K
+    # 🔹 Adaptive K
     if config["clustering"].get("adaptive", False):
         n_clusters = find_optimal_k(X_scaled)
         print(f"✅ Adaptive K selected: {n_clusters}")

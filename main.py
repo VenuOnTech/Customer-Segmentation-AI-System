@@ -16,6 +16,7 @@ from src.monitoring.data_validation import validate_data
 from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
+from src.feature_engineering.behavioral_features import add_behavioral_features
 
 import json
 import numpy as np
@@ -32,7 +33,7 @@ def run():
     # 🔹 Load Data
     df = load_data("data/raw/Online_Retail.xlsx")
 
-    # 🔹 Save snapshot (after directory exists)
+    # 🔹 Save snapshot
     df.sample(min(1000, len(df))).to_csv("outputs/data_snapshot.csv", index=False)
 
     # 🔹 Detect Schema
@@ -46,22 +47,38 @@ def run():
 
     # 🔹 Clean Data
     df = clean_data(df, mapping)
-    
-    # 🔹 Add Temporal Features
-    temporal_features = add_temporal_features(df, mapping)
-    
+
+    # 🔹 Data Versioning
     data_version = get_data_version(df)
     print(f"Data Version: {data_version}")
 
     # 🔹 Strict Validation (after cleaning)
     validate_data(df, mapping, strict=True)
 
-    # 🔹 Create RFM
+    # ==============================
+    # 🔥 FEATURE ENGINEERING BLOCK
+    # ==============================
+
+    # 🔹 Temporal Features (customer-level)
+    temporal_features = add_temporal_features(df, mapping)
+
+    # 🔹 RFM Features
     rfm = create_rfm(df, mapping)
-    
+
+    # 🔹 Behavioral Features
+    behavioral = add_behavioral_features(df, mapping)
+
+    # 🔹 Merge all features
+    rfm = rfm.merge(behavioral, on=mapping["customer_id"], how="left")
     rfm = rfm.merge(temporal_features, on=mapping["customer_id"], how="left")
 
-    # 🔹 Segmentation
+    # 🔹 Final NA handling before ML
+    rfm = rfm.fillna(0)
+
+    # ==============================
+    # 🔹 SEGMENTATION
+    # ==============================
+
     rfm, kmeans, scaler = run_kmeans(rfm, config)
 
     # 🔹 Future Prediction
@@ -90,7 +107,8 @@ def run():
     rfm.to_csv(output_path, index=True)
 
     print("Results saved to outputs/customer_segments.csv")
-    
+
+    # 🔹 Data Lineage
     log_data_lineage(data_version, output_path)
 
     # 🔁 FEEDBACK LOOP
@@ -105,8 +123,8 @@ def run():
     quality_report = generate_data_quality_report(df)
 
     with open("outputs/data_quality_report.json", "w") as f:
-        def convert_to_serializable(obj):
 
+        def convert_to_serializable(obj):
             if isinstance(obj, (np.integer,)):
                 return int(obj)
             elif isinstance(obj, (np.floating,)):
@@ -114,7 +132,7 @@ def run():
             elif isinstance(obj, (np.ndarray,)):
                 return obj.tolist()
             return str(obj)
-        
+
         json.dump(quality_report, f, indent=4, default=convert_to_serializable)
 
     print("Data quality report saved")
