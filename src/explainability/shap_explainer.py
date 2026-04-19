@@ -1,55 +1,63 @@
+import shap
 import numpy as np
 
+def generate_shap_explanations(model, X, max_samples=2000):
 
-def generate_shap_explanations(model, X):
+    # 🔹 SAMPLE DATA (CRITICAL FIX)
+    if len(X) > max_samples:
+        print(f"⚠️ SHAP sampling: {len(X)} → {max_samples}")
+        X_sample = X.sample(max_samples, random_state=42)
+        sample_indices = X_sample.index
+    else:
+        X_sample = X
+        sample_indices = X.index
 
+    # 🔹 Use safe explainer
     try:
-        import shap  # ✅ import inside (prevents CI crash at import time)
-
-        # 🔹 Safety: limit rows (extra protection)
-        MAX_ROWS = 500
-        if len(X) > MAX_ROWS:
-            X = X.sample(MAX_ROWS, random_state=42)
-
+        explainer = shap.Explainer(model, X_sample)
+        shap_values = explainer(X_sample)
+        shap_array = shap_values.values
+    except Exception:
+        # fallback (more stable for tree models)
         explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(X)
+        shap_values = explainer.shap_values(X_sample)
 
-        explanations = []
-
-        # 🔹 Handle different SHAP formats
         if isinstance(shap_values, list):
             shap_array = shap_values[1]
         else:
             shap_array = shap_values
 
-        for i in range(len(X)):
-            values = shap_array[i]
+    explanations_map = {}
 
-            # 🔹 Ensure clean numeric vector
-            values = np.array(values).flatten()
+    for i, idx in enumerate(sample_indices):
 
-            feature_impact = {
-                col: float(val) for col, val in zip(X.columns, values)
-            }
+        values = np.array(shap_array[i]).flatten()
 
-            # 🔹 Top 2 important features
-            top_features = sorted(
-                feature_impact.items(),
-                key=lambda x: abs(x[1]),
-                reverse=True
-            )[:2]
+        feature_impact = {
+            col: float(val) for col, val in zip(X_sample.columns, values)
+        }
 
-            explanation = ", ".join(
-                [f"{feat} impact: {round(val, 2)}" for feat, val in top_features]
-            )
+        top_features = sorted(
+            feature_impact.items(),
+            key=lambda x: abs(x[1]),
+            reverse=True
+        )[:2]
 
-            explanations.append(explanation)
+        explanation = ", ".join(
+            [f"{feat} impact: {round(val, 2)}" for feat, val in top_features]
+        )
 
-        return explanations
+        explanations_map[idx] = explanation
 
-    except Exception as e:
-        print(f"⚠️ SHAP failed: {e}")
-        return ["Explanation unavailable"] * len(X)
+    # 🔹 Fill remaining rows with default explanation
+    final_explanations = []
+    for idx in X.index:
+        if idx in explanations_map:
+            final_explanations.append(explanations_map[idx])
+        else:
+            final_explanations.append("Default explanation (sampled)")
+
+    return final_explanations
 
 
 def explain_customer(row):

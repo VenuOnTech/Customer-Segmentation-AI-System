@@ -94,23 +94,9 @@ def run():
 
     # 🔹 Explainability (SAFE MODE)
 
-    EXPLAIN_SAMPLE_SIZE = 500  # prevent SHAP crash
+    X_explain = rfm[["Frequency", "Monetary"]]
 
-    if len(rfm) > EXPLAIN_SAMPLE_SIZE:
-        print(f"⚠️ SHAP sampling: {len(rfm)} → {EXPLAIN_SAMPLE_SIZE}")
-        explain_df = rfm.sample(EXPLAIN_SAMPLE_SIZE, random_state=42)
-    else:
-        explain_df = rfm
-
-    X_explain = explain_df[["Frequency", "Monetary"]]
-
-    explanations = generate_shap_explanations(churn_model, X_explain)
-
-    # Initialize column
-    rfm["Explanation"] = "Not computed"
-
-    # Assign only to sampled rows
-    rfm.loc[explain_df.index, "Explanation"] = explanations
+    rfm["Explanation"] = generate_shap_explanations(churn_model, X_explain)
 
     # 🔹 Drift Detection
     old_data = rfm["Frequency"]
@@ -135,8 +121,24 @@ def run():
     # 🔁 FEEDBACK LOOP
     feedback_df = collect_feedback(output_path)
 
-    X_feedback = feedback_df[["Recency", "Frequency", "Monetary"]]
-    y_feedback = feedback_df["Actual_Churn"]
+    if feedback_df is not None and not feedback_df.empty:
+
+        required_cols = ["Recency", "Frequency", "Monetary", "Actual_Churn"]
+
+        if all(col in feedback_df.columns for col in required_cols):
+
+            X_feedback = feedback_df[["Recency", "Frequency", "Monetary"]]
+            y_feedback = feedback_df["Actual_Churn"]
+
+            churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
+
+            print("✅ Feedback retraining completed")
+
+        else:
+            print("⚠️ Feedback data missing required columns → skipping retraining")
+
+    else:
+        print("⚠️ No feedback data available → skipping retraining")
 
     churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
 
