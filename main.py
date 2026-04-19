@@ -2,6 +2,7 @@ import numpy as np
 import json
 import os
 
+# 🔒 CRITICAL: prevent memory crashes
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -16,7 +17,6 @@ from src.feature_engineering.multi_source_features import add_multi_source_featu
 from src.segmentation.kmeans_segmentation import run_kmeans
 from src.prediction.churn_prediction import train_churn
 from src.prediction.future_prediction import predict_future_purchase
-from src.explainability.shap_explainer import generate_shap_explanations
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models
 from src.utils.config_loader import load_config
@@ -27,6 +27,7 @@ from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
+
 
 def run():
 
@@ -44,7 +45,7 @@ def run():
     # 🔹 Detect Schema
     mapping = detect_columns(df)
 
-    # 🔹 Soft Validation (before cleaning)
+    # 🔹 Soft Validation
     validate_data(df, mapping, strict=False)
 
     # 🔹 Add Multi-source Features
@@ -57,30 +58,27 @@ def run():
     data_version = get_data_version(df)
     print(f"Data Version: {data_version}")
 
-    # 🔹 Strict Validation (after cleaning)
+    # 🔹 Strict Validation
     validate_data(df, mapping, strict=True)
 
     # ==============================
-    # 🔥 FEATURE ENGINEERING BLOCK
+    # 🔥 FEATURE ENGINEERING
     # ==============================
 
-    # 🔹 Temporal Features (customer-level)
     temporal_features = add_temporal_features(df, mapping)
-
-    # 🔹 RFM Features
     rfm = create_rfm(df, mapping)
-
-    # 🔹 Behavioral Features
     behavioral = add_behavioral_features(df, mapping)
 
-    # 🔹 Merge all features
+    # 🔹 Merge features
     rfm = rfm.merge(behavioral, on=mapping["customer_id"], how="left")
     rfm = rfm.merge(temporal_features, on=mapping["customer_id"], how="left")
 
-    # 🔹 Final NA handling before ML
+    # 🔹 Handle missing values
     rfm = rfm.fillna(0)
-    
-    rfm = rfm.astype("float32")
+
+    # 🔥 FIX: convert ONLY numeric columns
+    numeric_cols = rfm.select_dtypes(include=["number"]).columns
+    rfm[numeric_cols] = rfm[numeric_cols].astype("float32")
 
     # ==============================
     # 🔹 SEGMENTATION
@@ -94,12 +92,8 @@ def run():
     # 🔹 Churn Model
     churn_model, churn_metrics = train_churn(rfm)
 
-    # 🔹 Explainability (SAFE MODE)
-
-    X_explain = rfm[["Frequency", "Monetary"]]
-
+    # 🔹 Explainability (DISABLED)
     print("⚠️ SHAP disabled to prevent memory crash")
-
     rfm["Explanation"] = "SHAP disabled (stability mode)"
 
     # 🔹 Drift Detection
@@ -122,7 +116,10 @@ def run():
     # 🔹 Data Lineage
     log_data_lineage(data_version, output_path)
 
-    # 🔁 FEEDBACK LOOP
+    # ==============================
+    # 🔁 FEEDBACK LOOP (SAFE)
+    # ==============================
+
     feedback_df = collect_feedback(output_path)
 
     if feedback_df is not None and not feedback_df.empty:
@@ -135,7 +132,6 @@ def run():
             y_feedback = feedback_df["Actual_Churn"]
 
             churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
-
             print("✅ Feedback retraining completed")
 
         else:
@@ -144,11 +140,13 @@ def run():
     else:
         print("⚠️ No feedback data available → skipping retraining")
 
-    churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
+    # ==============================
+    # 🔹 SAVE MODEL PERFORMANCE
+    # ==============================
 
-    # 🔹 Save Model Performance
     with open("outputs/model_performance.json", "w") as f:
-        def convert_to_serializable(obj):
+
+        def convert(obj):
             if isinstance(obj, (np.integer,)):
                 return int(obj)
             elif isinstance(obj, (np.floating,)):
@@ -157,16 +155,19 @@ def run():
                 return obj.tolist()
             return str(obj)
 
-        json.dump(churn_metrics, f, indent=4, default=convert_to_serializable)
+        json.dump(churn_metrics, f, indent=4, default=convert)
 
     print("Model performance saved")
-    
-    # 🔹 Data Quality Report
+
+    # ==============================
+    # 🔹 DATA QUALITY REPORT
+    # ==============================
+
     quality_report = generate_data_quality_report(df)
 
     with open("outputs/data_quality_report.json", "w") as f:
 
-        def convert_to_serializable(obj):
+        def convert(obj):
             if isinstance(obj, (np.integer,)):
                 return int(obj)
             elif isinstance(obj, (np.floating,)):
@@ -175,7 +176,7 @@ def run():
                 return obj.tolist()
             return str(obj)
 
-        json.dump(quality_report, f, indent=4, default=convert_to_serializable)
+        json.dump(quality_report, f, indent=4, default=convert)
 
     print("Data quality report saved")
 

@@ -1,8 +1,8 @@
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
 from src.feature_engineering.feature_selection import select_features
 from src.feature_engineering.feature_weighting import apply_feature_weights
-from sklearn.metrics import silhouette_score
 
 
 def find_optimal_k(X_scaled, max_k=8):
@@ -26,20 +26,22 @@ def find_optimal_k(X_scaled, max_k=8):
 
     best_k = max(scores, key=scores.get)
 
-    # Avoid trivial clustering
     if best_k == 2 and scores.get(3, 0) > 0.55:
         best_k = 3
 
     return best_k
 
+
 def run_kmeans(rfm, config):
 
     X = select_features(rfm)
 
+    # 🔹 Limit features
     MAX_FEATURES = 10
     if X.shape[1] > MAX_FEATURES:
         X = X.iloc[:, :MAX_FEATURES]
 
+    # 🔹 Clean
     X = X.select_dtypes(include=["number"]).copy()
     X = X.replace([float("inf"), float("-inf")], 0)
     X = X.fillna(0)
@@ -47,6 +49,10 @@ def run_kmeans(rfm, config):
     if "Cluster" in X.columns:
         X = X.drop(columns=["Cluster"])
 
+    # 🔹 Apply weights
+    X = apply_feature_weights(X)
+
+    # 🔹 Sampling for stability
     MAX_ROWS = 100000
     if len(X) > MAX_ROWS:
         print(f"⚠️ Sampling data for clustering: {len(X)} → {MAX_ROWS}")
@@ -57,7 +63,7 @@ def run_kmeans(rfm, config):
     scaler = StandardScaler()
     X_scaled_sample = scaler.fit_transform(X_sample)
 
-    # ✅ FIX: use SAMPLE consistently
+    # 🔹 Adaptive K
     if config["clustering"].get("adaptive", False):
         n_clusters = find_optimal_k(X_scaled_sample)
         print(f"✅ Adaptive K selected: {n_clusters}")
@@ -73,7 +79,7 @@ def run_kmeans(rfm, config):
 
     model.fit(X_scaled_sample)
 
-    # 🔥 SAFE FULL TRANSFORM
+    # 🔹 Predict on full dataset
     X_scaled_full = scaler.transform(X)
     rfm["Cluster"] = model.predict(X_scaled_full)
 
