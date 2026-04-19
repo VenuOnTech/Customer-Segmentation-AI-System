@@ -79,6 +79,8 @@ def run():
 
     # 🔹 Final NA handling before ML
     rfm = rfm.fillna(0)
+    
+    rfm = rfm.astype("float32")
 
     # ==============================
     # 🔹 SEGMENTATION
@@ -96,7 +98,9 @@ def run():
 
     X_explain = rfm[["Frequency", "Monetary"]]
 
-    rfm["Explanation"] = generate_shap_explanations(churn_model, X_explain)
+    print("⚠️ SHAP disabled to prevent memory crash")
+
+    rfm["Explanation"] = "SHAP disabled (stability mode)"
 
     # 🔹 Drift Detection
     old_data = rfm["Frequency"]
