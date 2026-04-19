@@ -72,6 +72,8 @@ def run():
     # ==============================
 
     rfm, kmeans, scaler = run_kmeans(rfm, config)
+    
+    print("✅ Hybrid clustering applied (KMeans + DBSCAN)")
 
     # ==============================
     # 🔹 PREDICTION (DEEP MODEL)
