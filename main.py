@@ -85,7 +85,7 @@ def run():
     rfm = predict_future_purchase(rfm)
 
     # 🔹 Churn Model
-    churn_model = train_churn(rfm)
+    churn_model, churn_metrics = train_churn(rfm)
 
     # 🔹 Explainability
     X_explain = rfm[["Frequency", "Monetary"]]
@@ -119,6 +119,21 @@ def run():
 
     churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
 
+    # 🔹 Save Model Performance
+    with open("outputs/model_performance.json", "w") as f:
+        def convert_to_serializable(obj):
+            if isinstance(obj, (np.integer,)):
+                return int(obj)
+            elif isinstance(obj, (np.floating,)):
+                return float(obj)
+            elif isinstance(obj, (np.ndarray,)):
+                return obj.tolist()
+            return str(obj)
+
+        json.dump(churn_metrics, f, indent=4, default=convert_to_serializable)
+
+    print("Model performance saved")
+    
     # 🔹 Data Quality Report
     quality_report = generate_data_quality_report(df)
 
