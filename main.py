@@ -92,7 +92,17 @@ def run():
     quality_report = generate_data_quality_report(df)
 
     with open("outputs/data_quality_report.json", "w") as f:
-        json.dump(quality_report, f, indent=4)
+        def convert_to_serializable(obj):
+
+            if isinstance(obj, (np.integer,)):
+                return int(obj)
+            elif isinstance(obj, (np.floating,)):
+                return float(obj)
+            elif isinstance(obj, (np.ndarray,)):
+                return obj.tolist()
+            return str(obj)
+        
+        json.dump(quality_report, f, indent=4, default=convert_to_serializable)
 
     print("Data quality report saved")
 
