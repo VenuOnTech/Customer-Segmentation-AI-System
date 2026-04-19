@@ -23,18 +23,32 @@ def get_fallback_mapping(df):
     return fallback
 
 
+from src.data_ingestion.schema_contract import REQUIRED_SCHEMA
+
 def detect_columns(df):
-    column_map = {}
 
-    # Normalize column names
-    cols = {col.lower().replace(" ", "").replace("_", ""): col for col in df.columns}
+    mapping = {}
+    missing = []
 
-    def find_col(possible_names):
-        for name in possible_names:
-            key = name.lower().replace(" ", "").replace("_", "")
-            if key in cols:
-                return cols[key]
-        return None
+    for key, possible_names in REQUIRED_SCHEMA.items():
+        found = None
+        for col in df.columns:
+            if col in possible_names:
+                found = col
+                break
+        
+        if found:
+            mapping[key] = found
+        else:
+            missing.append(key)
+
+    confidence = 1 - (len(missing) / len(REQUIRED_SCHEMA))
+    print(f"Schema detection confidence: {confidence:.2f}")
+
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    return mapping
 
     # 🔹 Robust mapping
     column_map["customer_id"] = find_col(["customerid", "customer_id"])

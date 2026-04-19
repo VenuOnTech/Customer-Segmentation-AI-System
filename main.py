@@ -13,6 +13,8 @@ from src.utils.config_loader import load_config
 from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
 from src.monitoring.data_quality import generate_data_quality_report
 from src.monitoring.data_validation import validate_data
+from src.data_ingestion.data_versioning import get_data_version
+from src.monitoring.data_lineage import log_data_lineage
 
 import json
 import numpy as np
@@ -43,6 +45,9 @@ def run():
 
     # 🔹 Clean Data
     df = clean_data(df, mapping)
+    
+    data_version = get_data_version(df)
+    print(f"Data Version: {data_version}")
 
     # 🔹 Strict Validation (after cleaning)
     validate_data(df, mapping, strict=True)
@@ -79,6 +84,8 @@ def run():
     rfm.to_csv(output_path, index=True)
 
     print("Results saved to outputs/customer_segments.csv")
+    
+    log_data_lineage(data_version, output_path)
 
     # 🔁 FEEDBACK LOOP
     feedback_df = collect_feedback(output_path)
