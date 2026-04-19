@@ -1,3 +1,13 @@
+import numpy as np
+import json
+import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 from src.data_ingestion.load_data import load_data
 from src.data_ingestion.schema_detection import detect_columns
 from src.preprocessing.data_cleaning import clean_data
@@ -17,11 +27,6 @@ from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
-
-import json
-import numpy as np
-import os
-
 
 def run():
 

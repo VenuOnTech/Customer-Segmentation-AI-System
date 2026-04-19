@@ -10,7 +10,12 @@ def find_optimal_k(X_scaled, max_k=8):
     scores = {}
 
     for k in range(2, max_k + 1):
-        model = KMeans(n_clusters=k, random_state=42, n_init=10)
+        model = KMeans(
+            n_clusters=k,
+            random_state=42,
+            n_init=10,
+            algorithm="lloyd"
+        )
         labels = model.fit_predict(X_scaled)
 
         score = silhouette_score(X_scaled, labels)
@@ -29,8 +34,12 @@ def find_optimal_k(X_scaled, max_k=8):
 
 def run_kmeans(rfm, config):
 
-    # 🔹 Feature selection (ONLY THIS — no select_dtypes)
     X = select_features(rfm)
+
+    # ✅ Ensure safe numeric matrix (prevents low-level crashes)
+    X = X.select_dtypes(include=["number"]).copy()
+    X = X.replace([float("inf"), float("-inf")], 0)
+    X = X.fillna(0)
 
     # 🔹 Remove label column if exists
     if "Cluster" in X.columns:
@@ -55,7 +64,8 @@ def run_kmeans(rfm, config):
     model = KMeans(
         n_clusters=n_clusters,
         random_state=config["clustering"]["random_state"],
-        n_init=config["clustering"]["n_init"]
+        n_init=config["clustering"]["n_init"],
+        algorithm="lloyd"
     )
 
     rfm["Cluster"] = model.fit_predict(X_scaled)
