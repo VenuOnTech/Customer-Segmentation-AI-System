@@ -2,7 +2,7 @@ import numpy as np
 import json
 import os
 
-# 🔒 CRITICAL: prevent memory crashes
+# 🔒 Prevent memory crashes
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -15,7 +15,7 @@ from src.preprocessing.data_cleaning import clean_data
 from src.feature_engineering.rfm_features import create_rfm
 from src.feature_engineering.multi_source_features import add_multi_source_features
 from src.segmentation.kmeans_segmentation import run_kmeans
-from src.prediction.churn_prediction import train_churn
+from src.prediction.deep_churn_model import train_deep_churn
 from src.prediction.future_prediction import predict_future_purchase
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models
@@ -27,38 +27,28 @@ from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
+from src.explainability.feature_importance_explainer import generate_feature_importance
 
 
 def run():
 
     config = load_config()
 
-    # 🔹 Ensure output directory exists FIRST
     os.makedirs("outputs", exist_ok=True)
 
-    # 🔹 Load Data
     df = load_data("data/raw/Online_Retail.xlsx")
-
-    # 🔹 Save snapshot
     df.sample(min(1000, len(df))).to_csv("outputs/data_snapshot.csv", index=False)
 
-    # 🔹 Detect Schema
     mapping = detect_columns(df)
 
-    # 🔹 Soft Validation
     validate_data(df, mapping, strict=False)
 
-    # 🔹 Add Multi-source Features
     df = add_multi_source_features(df)
-
-    # 🔹 Clean Data
     df = clean_data(df, mapping)
 
-    # 🔹 Data Versioning
     data_version = get_data_version(df)
     print(f"Data Version: {data_version}")
 
-    # 🔹 Strict Validation
     validate_data(df, mapping, strict=True)
 
     # ==============================
@@ -69,34 +59,42 @@ def run():
     rfm = create_rfm(df, mapping)
     behavioral = add_behavioral_features(df, mapping)
 
-    # 🔹 Merge features
     rfm = rfm.merge(behavioral, on=mapping["customer_id"], how="left")
     rfm = rfm.merge(temporal_features, on=mapping["customer_id"], how="left")
 
-    # 🔹 Handle missing values
     rfm = rfm.fillna(0)
 
-    # 🔥 FIX: convert ONLY numeric columns
     numeric_cols = rfm.select_dtypes(include=["number"]).columns
     rfm[numeric_cols] = rfm[numeric_cols].astype("float32")
 
     # ==============================
-    # 🔹 SEGMENTATION
+    # 🔹 SEGMENTATION (HYBRID)
     # ==============================
 
     rfm, kmeans, scaler = run_kmeans(rfm, config)
 
-    # 🔹 Future Prediction
+    # ==============================
+    # 🔹 PREDICTION (DEEP MODEL)
+    # ==============================
+
     rfm = predict_future_purchase(rfm)
 
-    # 🔹 Churn Model
-    churn_model, churn_metrics = train_churn(rfm)
+    churn_model, churn_metrics = train_deep_churn(rfm)
 
-    # 🔹 Explainability (DISABLED)
-    print("⚠️ SHAP disabled to prevent memory crash")
-    rfm["Explanation"] = "SHAP disabled (stability mode)"
+    # ==============================
+    # 🔹 EXPLAINABILITY (SAFE)
+    # ==============================
 
-    # 🔹 Drift Detection
+    X_explain = rfm.select_dtypes(include=["number"]).drop(columns=["Cluster"], errors="ignore")
+
+    rfm["Explanation"] = generate_feature_importance(churn_model, X_explain)
+
+    print("✅ Feature importance explanations generated")
+
+    # ==============================
+    # 🔹 DRIFT DETECTION
+    # ==============================
+
     old_data = rfm["Frequency"]
     noise = np.random.normal(0, 0.01, len(rfm))
     new_data = rfm["Frequency"] * (1 + noise)
@@ -104,20 +102,21 @@ def run():
     if detect_drift(old_data, new_data):
         print("Drift detected → retraining needed")
 
-    # 🔥 SAVE MODELS
+    # ==============================
+    # 🔥 SAVE
+    # ==============================
+
     save_models(kmeans, churn_model, scaler)
 
-    # 🔥 SAVE OUTPUTS
     output_path = "outputs/customer_segments.csv"
     rfm.to_csv(output_path, index=True)
 
-    print("Results saved to outputs/customer_segments.csv")
+    print("Results saved")
 
-    # 🔹 Data Lineage
     log_data_lineage(data_version, output_path)
 
     # ==============================
-    # 🔁 FEEDBACK LOOP (SAFE)
+    # 🔁 FEEDBACK LOOP
     # ==============================
 
     feedback_df = collect_feedback(output_path)
@@ -132,16 +131,17 @@ def run():
             y_feedback = feedback_df["Actual_Churn"]
 
             churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
+
             print("✅ Feedback retraining completed")
 
         else:
-            print("⚠️ Feedback data missing required columns → skipping retraining")
+            print("⚠️ Missing columns in feedback")
 
     else:
-        print("⚠️ No feedback data available → skipping retraining")
+        print("⚠️ No feedback data")
 
     # ==============================
-    # 🔹 SAVE MODEL PERFORMANCE
+    # 🔹 SAVE METRICS
     # ==============================
 
     with open("outputs/model_performance.json", "w") as f:
@@ -160,25 +160,13 @@ def run():
     print("Model performance saved")
 
     # ==============================
-    # 🔹 DATA QUALITY REPORT
+    # 🔹 DATA QUALITY
     # ==============================
 
     quality_report = generate_data_quality_report(df)
 
     with open("outputs/data_quality_report.json", "w") as f:
-
-        def convert(obj):
-            if isinstance(obj, (np.integer,)):
-                return int(obj)
-            elif isinstance(obj, (np.floating,)):
-                return float(obj)
-            elif isinstance(obj, (np.ndarray,)):
-                return obj.tolist()
-            return str(obj)
-
         json.dump(quality_report, f, indent=4, default=convert)
-
-    print("Data quality report saved")
 
     print("SYSTEM COMPLETE")
 
