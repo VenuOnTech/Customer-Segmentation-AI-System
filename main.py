@@ -82,7 +82,7 @@ def run():
     rfm = predict_future_purchase(rfm)
 
     # 🔹 Traditional Model
-    churn_model, churn_metrics = train_churn(rfm)
+    churn_model, churn_metrics = train_deep_churn(rfm)
 
     # 🔹 LSTM Model (SAFE MODE)
     lstm_model, lstm_metrics = train_lstm_churn(rfm)
