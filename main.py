@@ -25,12 +25,27 @@ def run():
     os.makedirs("outputs", exist_ok=True)
 
     config = load_config()
-    
+
+    # 🔹 Ensure output directory exists FIRST
+    os.makedirs("outputs", exist_ok=True)
+
     # 🔹 Load Data
     df = load_data("data/raw/Online_Retail.xlsx")
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+
+    # 🔹 Save snapshot (after directory exists)
+    df.sample(min(1000, len(df))).to_csv("outputs/data_snapshot.csv", index=False)
+=======
+>>>>>>> 519fad9c0b5123d5f9372fd277bf3b2c8e440dc1
+>>>>>>> Stashed changes
 
     # 🔹 Detect Schema
     mapping = detect_columns(df)
+
+    # 🔹 Soft Validation (before cleaning)
+    validate_data(df, mapping, strict=False)
 
     # 🔹 Add Multi-source Features
     df = add_multi_source_features(df)
@@ -38,6 +53,13 @@ def run():
     # 🔹 Clean Data
     df = clean_data(df, mapping)
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+    # 🔹 Strict Validation (after cleaning)
+    validate_data(df, mapping, strict=True)
+=======
+>>>>>>> Stashed changes
     # 🔹 Validate Data (EARLY STOP if bad)
     validate_data(df, mapping)
 
@@ -49,6 +71,10 @@ def run():
 
     # 🔹 Save Data Snapshot (CLEAN data)
     df.sample(min(1000, len(df))).to_csv("outputs/data_snapshot.csv", index=False)
+<<<<<<< Updated upstream
+=======
+>>>>>>> 519fad9c0b5123d5f9372fd277bf3b2c8e440dc1
+>>>>>>> Stashed changes
 
     # 🔹 Create RFM
     rfm = create_rfm(df, mapping)
@@ -73,6 +99,11 @@ def run():
     if os.path.exists(previous_path):
         old_data = np.load(previous_path)
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> Stashed changes
         if detect_drift(old_data, current_data):
             print("Drift detected → retraining needed")
     else:
@@ -80,6 +111,10 @@ def run():
 
     np.save(previous_path, current_data)
 
+<<<<<<< Updated upstream
+=======
+>>>>>>> 519fad9c0b5123d5f9372fd277bf3b2c8e440dc1
+>>>>>>> Stashed changes
     # 🔥 SAVE MODELS
     save_models(kmeans, churn_model, scaler)
 
@@ -96,10 +131,28 @@ def run():
         X_feedback = feedback_df[["Recency", "Frequency", "Monetary"]]
         y_feedback = feedback_df["Actual_Churn"]
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+    churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
+
+    # 🔹 Data Quality Report
+    quality_report = generate_data_quality_report(df)
+
+    with open("outputs/data_quality_report.json", "w") as f:
+        json.dump(quality_report, f, indent=4)
+
+    print("Data quality report saved")
+=======
+>>>>>>> Stashed changes
         churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
         print("Model retrained with feedback")
     else:
         print("No feedback data available")
+<<<<<<< Updated upstream
+=======
+>>>>>>> 519fad9c0b5123d5f9372fd277bf3b2c8e440dc1
+>>>>>>> Stashed changes
 
     print("SYSTEM COMPLETE")
 
