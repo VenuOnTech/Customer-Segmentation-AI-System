@@ -11,7 +11,10 @@ from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models
 from src.utils.config_loader import load_config
 from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
+from src.monitoring.data_quality import generate_data_quality_report
+from src.monitoring.data_validation import validate_data
 
+import json
 import numpy as np
 import os
 
@@ -22,6 +25,8 @@ def run():
     
     # 🔹 Load Data
     df = load_data("data/raw/Online_Retail.xlsx")
+    
+    df.sample(1000).to_csv("outputs/data_snapshot.csv", index=False)
 
     # 🔹 Detect Schema
     mapping = detect_columns(df)
@@ -73,6 +78,18 @@ def run():
     y_feedback = feedback_df["Actual_Churn"]
 
     churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
+    
+    # 🔹 Data Quality Report
+    quality_report = generate_data_quality_report(df)
+
+    os.makedirs("outputs", exist_ok=True)
+
+    with open("outputs/data_quality_report.json", "w") as f:
+        json.dump(quality_report, f, indent=4)
+
+    print("Data quality report saved")
+    
+    validate_data(df, mapping)
 
     print("SYSTEM COMPLETE")
 
