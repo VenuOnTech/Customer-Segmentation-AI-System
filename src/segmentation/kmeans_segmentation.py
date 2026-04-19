@@ -1,11 +1,10 @@
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
+from src.feature_engineering.feature_selection import select_features
+
 
 def find_optimal_k(X_scaled, max_k=8):
-
-    from sklearn.cluster import KMeans
-    from sklearn.metrics import silhouette_score
 
     scores = {}
 
@@ -20,7 +19,8 @@ def find_optimal_k(X_scaled, max_k=8):
 
     best_k = max(scores, key=scores.get)
 
-    if best_k == 2 and scores[3] > 0.55:
+    # 🔹 Business-safe override
+    if best_k == 2 and scores.get(3, 0) > 0.55:
         best_k = 3
 
     return best_k
@@ -28,13 +28,10 @@ def find_optimal_k(X_scaled, max_k=8):
 
 def run_kmeans(rfm, config):
 
-    from sklearn.cluster import KMeans
-    from sklearn.preprocessing import StandardScaler
+    # 🔹 Feature selection (ONLY THIS — no select_dtypes)
+    X = select_features(rfm)
 
-    # 🔹 Use ALL numeric features (including engineered ones)
-    X = rfm.select_dtypes(include=['number']).copy()
-
-    # 🔹 Remove target/label columns if present
+    # 🔹 Remove label column if exists
     if "Cluster" in X.columns:
         X = X.drop(columns=["Cluster"])
 
