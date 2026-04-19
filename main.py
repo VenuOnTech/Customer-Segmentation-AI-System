@@ -28,7 +28,7 @@ from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
 from src.explainability.feature_importance_explainer import generate_feature_importance_explanations
-
+from src.prediction.lstm_churn_model import train_lstm_churn, predict_lstm
 
 def run():
 
@@ -81,7 +81,17 @@ def run():
 
     rfm = predict_future_purchase(rfm)
 
-    churn_model, churn_metrics = train_deep_churn(rfm)
+    # 🔹 Traditional Model
+    churn_model, churn_metrics = train_churn(rfm)
+
+    # 🔹 LSTM Model (NEW)
+    lstm_model, lstm_metrics = train_lstm_churn(rfm)
+
+    # 🔹 Add predictions
+    rfm["LSTM_Churn_Prob"] = predict_lstm(lstm_model, rfm)
+
+    # 🔹 Merge metrics
+    churn_metrics.update(lstm_metrics)
 
     # ==============================
     # 🔍 EXPLAINABILITY (SAFE MODE)
