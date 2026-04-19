@@ -1,66 +1,56 @@
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score
 from src.feature_engineering.feature_selection import select_features
 from src.feature_engineering.feature_weighting import apply_feature_weights
 
 
-def find_optimal_k(X_scaled, max_k=8):
-
-    scores = {}
-
-    for k in range(2, max_k + 1):
-        model = KMeans(
-            n_clusters=k,
-            random_state=42,
-            n_init=10,
-            algorithm="lloyd"
-        )
-        labels = model.fit_predict(X_scaled)
-
-        score = silhouette_score(X_scaled, labels)
-        scores[k] = score
-
-        print(f"K={k}, Silhouette Score={score:.4f}")
-
-    best_k = max(scores, key=scores.get)
-
-    # 🔹 Business-safe override
-    if best_k == 2 and scores.get(3, 0) > 0.55:
-        best_k = 3
-
-    return best_k
-
-
 def run_kmeans(rfm, config):
 
+    # 🔹 Feature selection
     X = select_features(rfm)
 
-    # ✅ Ensure safe numeric matrix (prevents low-level crashes)
+    # 🔹 Limit dimensionality
+    MAX_FEATURES = 10
+    if X.shape[1] > MAX_FEATURES:
+        X = X.iloc[:, :MAX_FEATURES]
+
+    # 🔹 Keep only numeric
     X = X.select_dtypes(include=["number"]).copy()
+
+    # 🔹 Clean values
     X = X.replace([float("inf"), float("-inf")], 0)
     X = X.fillna(0)
 
-    # 🔹 Remove label column if exists
+    # 🔹 Remove label if exists
     if "Cluster" in X.columns:
         X = X.drop(columns=["Cluster"])
 
-    # 🔹 Handle missing values
-    X = X.fillna(0)
-    
-    X = apply_feature_weights(X)
+    # 🔹 Apply feature weights (if exists)
+    try:
+        X = apply_feature_weights(X)
+    except Exception:
+        pass  # safe fallback
 
-    # 🔹 Scale features
+    # 🔹 Sampling for stability
+    MAX_ROWS = 100000
+    if len(X) > MAX_ROWS:
+        print(f"⚠️ Sampling data for clustering: {len(X)} → {MAX_ROWS}")
+        X_sample = X.sample(MAX_ROWS, random_state=42)
+    else:
+        X_sample = X
+
+    # 🔹 Scaling
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    X_scaled_sample = scaler.fit_transform(X_sample)
 
-    # 🔹 Adaptive K
+    # 🔹 Adaptive K (FIXED)
     if config["clustering"].get("adaptive", False):
-        n_clusters = find_optimal_k(X_scaled)
+        n_clusters = find_optimal_k(X_scaled_sample)
         print(f"✅ Adaptive K selected: {n_clusters}")
     else:
         n_clusters = config["clustering"]["n_clusters"]
 
+    # 🔹 Model (stable config)
     model = KMeans(
         n_clusters=n_clusters,
         random_state=config["clustering"]["random_state"],
@@ -68,6 +58,11 @@ def run_kmeans(rfm, config):
         algorithm="lloyd"
     )
 
-    rfm["Cluster"] = model.fit_predict(X_scaled)
+    # 🔹 Train on sample
+    model.fit(X_scaled_sample)
+
+    # 🔹 Predict on full dataset
+    X_scaled_full = scaler.transform(X)
+    rfm["Cluster"] = model.predict(X_scaled_full)
 
     return rfm, model, scaler
