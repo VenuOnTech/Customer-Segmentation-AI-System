@@ -2,6 +2,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from src.feature_engineering.feature_selection import select_features
+from src.feature_engineering.feature_weighting import apply_feature_weights
 
 
 def find_optimal_k(X_scaled, max_k=8):
@@ -37,6 +38,8 @@ def run_kmeans(rfm, config):
 
     # 🔹 Handle missing values
     X = X.fillna(0)
+    
+    X = apply_feature_weights(X)
 
     # 🔹 Scale features
     scaler = StandardScaler()
