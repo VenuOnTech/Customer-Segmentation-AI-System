@@ -92,9 +92,25 @@ def run():
     # 🔹 Churn Model
     churn_model, churn_metrics = train_churn(rfm)
 
-    # 🔹 Explainability
-    X_explain = rfm[["Frequency", "Monetary"]]
-    rfm["Explanation"] = generate_shap_explanations(churn_model, X_explain)
+    # 🔹 Explainability (SAFE MODE)
+
+    EXPLAIN_SAMPLE_SIZE = 500  # prevent SHAP crash
+
+    if len(rfm) > EXPLAIN_SAMPLE_SIZE:
+        print(f"⚠️ SHAP sampling: {len(rfm)} → {EXPLAIN_SAMPLE_SIZE}")
+        explain_df = rfm.sample(EXPLAIN_SAMPLE_SIZE, random_state=42)
+    else:
+        explain_df = rfm
+
+    X_explain = explain_df[["Frequency", "Monetary"]]
+
+    explanations = generate_shap_explanations(churn_model, X_explain)
+
+    # Initialize column
+    rfm["Explanation"] = "Not computed"
+
+    # Assign only to sampled rows
+    rfm.loc[explain_df.index, "Explanation"] = explanations
 
     # 🔹 Drift Detection
     old_data = rfm["Frequency"]
