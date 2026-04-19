@@ -84,13 +84,16 @@ def run():
     # 🔹 Traditional Model
     churn_model, churn_metrics = train_churn(rfm)
 
-    # 🔹 LSTM Model (NEW)
+    # 🔹 LSTM Model (SAFE MODE)
     lstm_model, lstm_metrics = train_lstm_churn(rfm)
 
-    # 🔹 Add predictions
-    rfm["LSTM_Churn_Prob"] = predict_lstm(lstm_model, rfm)
+    if lstm_model is not None:
+        rfm["LSTM_Churn_Prob"] = predict_lstm(lstm_model, rfm)
+        print("✅ LSTM model applied")
+    else:
+        rfm["LSTM_Churn_Prob"] = 0
+        print("⚠️ LSTM skipped (TensorFlow not available)")
 
-    # 🔹 Merge metrics
     churn_metrics.update(lstm_metrics)
 
     # ==============================
