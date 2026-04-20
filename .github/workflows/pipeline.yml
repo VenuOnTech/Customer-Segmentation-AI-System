@@ -12,108 +12,150 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHONUNBUFFERED: "1"
 
 jobs:
   pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
+      # ==============================
+      # 🔹 CHECKOUT
+      # ==============================
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ==============================
+      # 🔹 PYTHON SETUP
+      # ==============================
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Cache pip dependencies
+      # ==============================
+      # 🔹 CACHE
+      # ==============================
+      - name: Cache pip
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
 
+      # ==============================
+      # 🔹 INSTALL
+      # ==============================
       - name: Install dependencies
         run: |
+          echo "📦 Installing dependencies..."
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Download dataset from GitHub Release
+      # ==============================
+      # 🔹 PREPARE DIRS
+      # ==============================
+      - name: Prepare directories
         run: |
-          mkdir -p data/raw
-          echo "📥 Downloading Online_Retail.xlsx from GitHub Release..."
+          mkdir -p data/raw outputs models logs
 
-          # Download from GitHub Release Assets
+      # ==============================
+      # 🔹 DOWNLOAD DATA
+      # ==============================
+      - name: Download dataset
+        run: |
+          echo "📥 Downloading dataset..."
+
           curl -L -o data/raw/Online_Retail.xlsx \
-            "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx"
+          "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx"
 
-          # Verify download
-          if [ -f "data/raw/Online_Retail.xlsx" ]; then
-            echo "✅ Dataset downloaded successfully"
-            ls -lh data/raw/Online_Retail.xlsx
-          else
-            echo "❌ Failed to download dataset"
+          if [ ! -f data/raw/Online_Retail.xlsx ]; then
+            echo "❌ Dataset download failed"
             exit 1
           fi
 
+          echo "✅ Dataset ready"
+          ls -lh data/raw/
+
+      # ==============================
+      # 🔹 TESTS
+      # ==============================
       - name: Run tests
         run: |
-          echo "🧪 Running unit tests..."
+          echo "🧪 Running tests..."
           python tests/test_pipeline.py
 
+      # ==============================
+      # 🔹 RUN PIPELINE
+      # ==============================
       - name: Run ML pipeline
         run: |
-          echo "🚀 Starting ML pipeline with REAL data..."
+          echo "🚀 Running ML pipeline..."
           python main.py
 
+      # ==============================
+      # 🔹 VERIFY OUTPUT
+      # ==============================
       - name: Verify outputs
         run: |
-          if [ -f "outputs/customer_segments.csv" ]; then
-            echo "✅ Pipeline completed successfully with REAL data!"
-            echo "📈 Output statistics:"
-            wc -l outputs/customer_segments.csv
-            head -3 outputs/customer_segments.csv
-          else
-            echo "❌ Pipeline failed - outputs not generated"
+          echo "🔍 Checking outputs..."
+
+          if [ ! -f outputs/customer_segments.csv ]; then
+            echo "❌ Output missing!"
             exit 1
           fi
 
-      - name: Upload pipeline outputs
-        if: success()
+          echo "✅ Output generated"
+          wc -l outputs/customer_segments.csv
+          head -5 outputs/customer_segments.csv
+
+      # ==============================
+      # 🔹 UPLOAD ARTIFACTS
+      # ==============================
+      - name: Upload outputs
         uses: actions/upload-artifact@v4
         with:
-          name: pipeline-outputs
+          name: customer-segmentation-results
           path: outputs/
           retention-days: 30
-          if-no-files-found: error
 
-      - name: Upload model artifacts
-        if: success()
+      - name: Upload models
         uses: actions/upload-artifact@v4
         with:
           name: trained-models
           path: models/
           retention-days: 30
 
-      - name: Pipeline Success Summary
-        if: success()
-        run: |
-          echo "=========================================="
-          echo "✅ ML PIPELINE EXECUTED SUCCESSFULLY"
-          echo "=========================================="
-          echo "✅ Data: Real Online Retail Dataset"
-          echo "✅ Tests: All passed"
-          echo "✅ Models: Trained & Versioned"
-          echo "✅ Outputs: Generated"
-          echo "=========================================="
-
-      - name: Create GitHub Release with outputs
+      # ==============================
+      # 🔹 RELEASE (FIXED 🔥)
+      # ==============================
+      - name: Create GitHub Release
         if: success()
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: latest
+          name: "Latest ML Pipeline Output"
           files: outputs/customer_segments.csv
-          tag_name: v1.0.0-outputs-${{ github.run_number }}
-          body: "ML Pipeline Results"
+          body: |
+            ✅ Auto-generated ML results
+
+            - Dataset: Online Retail
+            - Pipeline: Customer Segmentation AI
+            - Run: ${{ github.run_number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==============================
+      # 🔹 SUCCESS LOG
+      # ==============================
+      - name: Pipeline Summary
+        if: success()
+        run: |
+          echo "=================================="
+          echo "✅ PIPELINE SUCCESS"
+          echo "=================================="
+          echo "📊 Data processed"
+          echo "🤖 Models trained"
+          echo "📈 Results generated"
+          echo "🚀 Release updated (latest)"
+          echo "=================================="
