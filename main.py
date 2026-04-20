@@ -14,7 +14,6 @@ from src.prediction.future_prediction import predict_future_purchase
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models
 from src.utils.config_loader import load_config
-from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
 from src.monitoring.data_quality import generate_data_quality_report
 from src.monitoring.data_validation import validate_data
 from src.data_ingestion.data_versioning import get_data_version
@@ -29,9 +28,7 @@ def run():
     config = load_config()
     os.makedirs("outputs", exist_ok=True)
 
-    # 🔥 MULTI-DATASET SUPPORT
     dataset_paths = glob.glob("data/raw/*")
-
     all_results = []
 
     for path in dataset_paths:
@@ -51,7 +48,7 @@ def run():
         data_version = get_data_version(df)
 
         # ==============================
-        # FEATURE ENGINEERING
+        # FEATURES
         # ==============================
         temporal = add_temporal_features(df, mapping)
         rfm = create_rfm(df, mapping)
@@ -65,7 +62,11 @@ def run():
         # ==============================
         # SEGMENTATION
         # ==============================
-        rfm, kmeans, scaler, cluster_metrics = run_kmeans(rfm, config)
+        rfm, kmeans, scaler = run_kmeans(rfm, config)
+
+        # unify column for downstream
+        if "Final_Cluster" in rfm.columns:
+            rfm["Cluster"] = rfm["Final_Cluster"]
 
         # ==============================
         # PREDICTION
@@ -74,53 +75,44 @@ def run():
         churn_model, churn_metrics = train_deep_churn(rfm)
 
         # ==============================
-        # EXPLAINABILITY (REAL SHAP)
+        # EXPLAINABILITY
         # ==============================
-        X = rfm.select_dtypes(include=["number"]).drop(columns=["Cluster"], errors="ignore")
+        X = rfm.select_dtypes(include=["number"]).drop(
+            columns=["Cluster"], errors="ignore"
+        )
 
         explanations = generate_shap_explanations(churn_model, X)
         rfm["Explanation"] = explanations
 
         # ==============================
-        # DRIFT DETECTION
+        # DRIFT
         # ==============================
         drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
 
         # ==============================
-        # SAVE OUTPUT PER DATASET
+        # SAVE
         # ==============================
         dataset_name = os.path.basename(path).split(".")[0]
-        output_path = f"outputs/{dataset_name}_segments.csv"
+        output_path = f"outputs/customer_segments.csv"
 
         rfm.to_csv(output_path, index=False)
 
-        # ==============================
-        # SAVE MODELS
-        # ==============================
         save_models(kmeans, churn_model, scaler)
-
         log_data_lineage(data_version, output_path)
 
-        # ==============================
-        # TRACK RESULTS
-        # ==============================
         result = {
             "dataset": dataset_name,
             "rows": len(rfm),
-            "clusters": cluster_metrics,
             "churn": churn_metrics,
             "drift_detected": drift
         }
 
         all_results.append(result)
 
-    # ==============================
-    # SAVE GLOBAL REPORT
-    # ==============================
     with open("outputs/final_report.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
-    print("\n✅ SYSTEM COMPLETE - MULTI DATASET READY")
+    print("\n✅ SYSTEM COMPLETE")
 
 
 if __name__ == "__main__":
