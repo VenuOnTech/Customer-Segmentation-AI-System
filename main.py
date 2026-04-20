@@ -1,13 +1,7 @@
 import numpy as np
 import json
 import os
-
-# 🔒 Prevent memory crashes
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+import glob
 
 from src.data_ingestion.load_data import load_data
 from src.data_ingestion.schema_detection import detect_columns
@@ -27,177 +21,106 @@ from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
-from src.explainability.feature_importance_explainer import generate_feature_importance_explanations
-from src.prediction.lstm_churn_model import train_lstm_churn, predict_lstm
+from src.explainability.shap_explainer import generate_shap_explanations
+
 
 def run():
 
     config = load_config()
-
     os.makedirs("outputs", exist_ok=True)
 
-    df = load_data("data/raw/Online_Retail.xlsx")
-    df.sample(min(1000, len(df))).to_csv("outputs/data_snapshot.csv", index=False)
+    # 🔥 MULTI-DATASET SUPPORT
+    dataset_paths = glob.glob("data/raw/*")
 
-    mapping = detect_columns(df)
+    all_results = []
 
-    validate_data(df, mapping, strict=False)
+    for path in dataset_paths:
 
-    df = add_multi_source_features(df)
-    df = clean_data(df, mapping)
+        print(f"\n🚀 Processing dataset: {path}")
 
-    data_version = get_data_version(df)
-    print(f"Data Version: {data_version}")
+        df = load_data(path)
 
-    validate_data(df, mapping, strict=True)
+        mapping = detect_columns(df)
+        validate_data(df, mapping, strict=False)
 
-    # ==============================
-    # 🔥 FEATURE ENGINEERING
-    # ==============================
+        df = add_multi_source_features(df)
+        df = clean_data(df, mapping)
 
-    temporal_features = add_temporal_features(df, mapping)
-    rfm = create_rfm(df, mapping)
-    behavioral = add_behavioral_features(df, mapping)
+        validate_data(df, mapping, strict=True)
 
-    rfm = rfm.merge(behavioral, on=mapping["customer_id"], how="left")
-    rfm = rfm.merge(temporal_features, on=mapping["customer_id"], how="left")
+        data_version = get_data_version(df)
 
-    rfm = rfm.fillna(0)
+        # ==============================
+        # FEATURE ENGINEERING
+        # ==============================
+        temporal = add_temporal_features(df, mapping)
+        rfm = create_rfm(df, mapping)
+        behavioral = add_behavioral_features(df, mapping)
 
-    numeric_cols = rfm.select_dtypes(include=["number"]).columns
-    rfm[numeric_cols] = rfm[numeric_cols].astype("float32")
+        rfm = rfm.merge(behavioral, on=mapping["customer_id"], how="left")
+        rfm = rfm.merge(temporal, on=mapping["customer_id"], how="left")
 
-    # ==============================
-    # 🔹 SEGMENTATION (HYBRID)
-    # ==============================
+        rfm = rfm.fillna(0)
 
-    rfm, kmeans, scaler = run_kmeans(rfm, config)
-    
-    print("✅ Hybrid clustering applied (KMeans + DBSCAN)")
+        # ==============================
+        # SEGMENTATION
+        # ==============================
+        rfm, kmeans, scaler, cluster_metrics = run_kmeans(rfm, config)
 
-    # ==============================
-    # 🔹 PREDICTION (DEEP MODEL)
-    # ==============================
+        # ==============================
+        # PREDICTION
+        # ==============================
+        rfm = predict_future_purchase(rfm)
+        churn_model, churn_metrics = train_deep_churn(rfm)
 
-    rfm = predict_future_purchase(rfm)
+        # ==============================
+        # EXPLAINABILITY (REAL SHAP)
+        # ==============================
+        X = rfm.select_dtypes(include=["number"]).drop(columns=["Cluster"], errors="ignore")
 
-    # 🔹 Traditional Model
-    churn_model, churn_metrics = train_deep_churn(rfm)
+        explanations = generate_shap_explanations(churn_model, X)
+        rfm["Explanation"] = explanations
 
-    # 🔹 LSTM Model (SAFE MODE)
-    lstm_model, lstm_metrics = train_lstm_churn(rfm)
+        # ==============================
+        # DRIFT DETECTION
+        # ==============================
+        drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
 
-    if lstm_model is not None:
-        rfm["LSTM_Churn_Prob"] = predict_lstm(lstm_model, rfm)
-        print("✅ LSTM model applied")
-    else:
-        rfm["LSTM_Churn_Prob"] = 0
-        print("⚠️ LSTM skipped (TensorFlow not available)")
+        # ==============================
+        # SAVE OUTPUT PER DATASET
+        # ==============================
+        dataset_name = os.path.basename(path).split(".")[0]
+        output_path = f"outputs/{dataset_name}_segments.csv"
 
-    churn_metrics.update(lstm_metrics)
+        rfm.to_csv(output_path, index=False)
 
-    # ==============================
-    # 🔍 EXPLAINABILITY (SAFE MODE)
-    # ==============================
+        # ==============================
+        # SAVE MODELS
+        # ==============================
+        save_models(kmeans, churn_model, scaler)
 
-    EXPLAIN_SAMPLE_SIZE = 1000
+        log_data_lineage(data_version, output_path)
 
-    if len(rfm) > EXPLAIN_SAMPLE_SIZE:
-        print(f"⚠️ Sampling for explanations: {len(rfm)} → {EXPLAIN_SAMPLE_SIZE}")
-        explain_df = rfm.sample(EXPLAIN_SAMPLE_SIZE, random_state=42)
-    else:
-        explain_df = rfm
+        # ==============================
+        # TRACK RESULTS
+        # ==============================
+        result = {
+            "dataset": dataset_name,
+            "rows": len(rfm),
+            "clusters": cluster_metrics,
+            "churn": churn_metrics,
+            "drift_detected": drift
+        }
 
-    X_explain = explain_df[["Frequency", "Monetary"]]
-
-    explanations = generate_feature_importance_explanations(
-        churn_model,
-        X_explain
-    )
-
-    rfm["Explanation"] = "Not computed"
-    rfm.loc[explain_df.index, "Explanation"] = explanations
-
-    print("✅ Feature importance explanations generated")
-
-    # ==============================
-    # 🔹 DRIFT DETECTION
-    # ==============================
-
-    old_data = rfm["Frequency"]
-    noise = np.random.normal(0, 0.01, len(rfm))
-    new_data = rfm["Frequency"] * (1 + noise)
-
-    if detect_drift(old_data, new_data):
-        print("Drift detected → retraining needed")
+        all_results.append(result)
 
     # ==============================
-    # 🔥 SAVE
+    # SAVE GLOBAL REPORT
     # ==============================
+    with open("outputs/final_report.json", "w") as f:
+        json.dump(all_results, f, indent=4)
 
-    save_models(kmeans, churn_model, scaler)
-
-    output_path = "outputs/customer_segments.csv"
-    rfm.to_csv(output_path, index=True)
-
-    print("Results saved")
-
-    log_data_lineage(data_version, output_path)
-
-    # ==============================
-    # 🔁 FEEDBACK LOOP
-    # ==============================
-
-    feedback_df = collect_feedback(output_path)
-
-    if feedback_df is not None and not feedback_df.empty:
-
-        required_cols = ["Recency", "Frequency", "Monetary", "Actual_Churn"]
-
-        if all(col in feedback_df.columns for col in required_cols):
-
-            X_feedback = feedback_df[["Recency", "Frequency", "Monetary"]]
-            y_feedback = feedback_df["Actual_Churn"]
-
-            churn_model = retrain_with_feedback(churn_model, X_feedback, y_feedback)
-
-            print("✅ Feedback retraining completed")
-
-        else:
-            print("⚠️ Missing columns in feedback")
-
-    else:
-        print("⚠️ No feedback data")
-
-    # ==============================
-    # 🔹 SAVE METRICS
-    # ==============================
-
-    with open("outputs/model_performance.json", "w") as f:
-
-        def convert(obj):
-            if isinstance(obj, (np.integer,)):
-                return int(obj)
-            elif isinstance(obj, (np.floating,)):
-                return float(obj)
-            elif isinstance(obj, (np.ndarray,)):
-                return obj.tolist()
-            return str(obj)
-
-        json.dump(churn_metrics, f, indent=4, default=convert)
-
-    print("Model performance saved")
-
-    # ==============================
-    # 🔹 DATA QUALITY
-    # ==============================
-
-    quality_report = generate_data_quality_report(df)
-
-    with open("outputs/data_quality_report.json", "w") as f:
-        json.dump(quality_report, f, indent=4, default=convert)
-
-    print("SYSTEM COMPLETE")
+    print("\n✅ SYSTEM COMPLETE - MULTI DATASET READY")
 
 
 if __name__ == "__main__":
