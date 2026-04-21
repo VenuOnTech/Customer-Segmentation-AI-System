@@ -73,7 +73,6 @@ def run():
         # ==============================
         rfm = predict_future_purchase(rfm)
 
-        # Ensure required columns
         if "Purchase_Probability" not in rfm.columns:
             rfm["Purchase_Probability"] = 0.0
 
@@ -81,34 +80,55 @@ def run():
             rfm["Churn"] = 0
 
         churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
-
         churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
         # ==============================
-        # EXPLAINABILITY (FIXED)
+        # EXPLAINABILITY (ROBUST ✅)
         # ==============================
         try:
-            X = rfm[feature_cols].copy()
+            # Ensure features exist
+            valid_features = [col for col in feature_cols if col in rfm.columns]
+
+            if len(valid_features) == 0:
+                raise ValueError("No valid features for SHAP")
+
+            X = rfm[valid_features].copy()
+
             explanations = generate_shap_explanations(churn_model, X)
 
-            if len(explanations) == len(rfm):
-                rfm["Explanation"] = explanations
-                print("✅ SHAP explanations added")
-            else:
-                raise ValueError("SHAP length mismatch")
+            if explanations is None or len(explanations) == 0:
+                raise ValueError("Empty SHAP output")
+
+            # Fix length mismatch
+            if len(explanations) != len(rfm):
+                explanations = list(explanations)[:len(rfm)]
+                explanations += [""] * (len(rfm) - len(explanations))
+
+            rfm["Explanation"] = explanations
+
+            print("✅ SHAP explanations generated")
 
         except Exception as e:
             print(f"⚠️ SHAP failed: {str(e)}")
+            rfm["Explanation"] = ""
 
-            # fallback explanation
-            rfm["Explanation"] = rfm.apply(
-                lambda row: (
-                    "High churn risk: low frequency & high recency"
-                    if row.get("Churn", 0) == 1
-                    else "Stable customer: consistent purchase pattern"
-                ),
-                axis=1
-            )
+        # ==============================
+        # SMART FALLBACK (IMPORTANT 🔥)
+        # ==============================
+        def generate_fallback(row):
+            if row.get("Churn", 0) == 1:
+                return "High churn risk due to low purchase frequency and long inactivity"
+            elif row.get("Purchase_Probability", 0) > 0.7:
+                return "High value customer with strong purchase likelihood"
+            else:
+                return "Moderate engagement customer with stable behavior"
+
+        rfm["Explanation"] = rfm.apply(
+            lambda row: row["Explanation"]
+            if row["Explanation"] not in ["", None, "Not computed"]
+            else generate_fallback(row),
+            axis=1
+        )
 
         # ==============================
         # DRIFT
