@@ -14,7 +14,6 @@ from src.prediction.future_prediction import predict_future_purchase
 from src.monitoring.behavior_drift import detect_drift
 from src.model_management.model_versioning import save_models
 from src.utils.config_loader import load_config
-from src.monitoring.data_quality import generate_data_quality_report
 from src.monitoring.data_validation import validate_data
 from src.data_ingestion.data_versioning import get_data_version
 from src.monitoring.data_lineage import log_data_lineage
@@ -64,7 +63,8 @@ def run():
         # ==============================
         rfm, kmeans, scaler, metrics = run_kmeans(rfm, config)
 
-        # unify column for downstream
+        print(f"📊 Clustering Metrics: {metrics}")  # ✅ USE metrics
+
         if "Final_Cluster" in rfm.columns:
             rfm["Cluster"] = rfm["Final_Cluster"]
 
@@ -72,14 +72,16 @@ def run():
         # PREDICTION
         # ==============================
         rfm = predict_future_purchase(rfm)
-        churn_model, churn_metrics = train_deep_churn(rfm)
+
+        churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
+
+        # ✅ Make JSON-safe
+        churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
         # ==============================
-        # EXPLAINABILITY
+        # EXPLAINABILITY (FIXED)
         # ==============================
-        X = rfm.select_dtypes(include=["number"]).drop(
-            columns=["Cluster"], errors="ignore"
-        )
+        X = rfm[feature_cols].copy()
 
         explanations = generate_shap_explanations(churn_model, X)
         rfm["Explanation"] = explanations
@@ -93,7 +95,7 @@ def run():
         # SAVE
         # ==============================
         dataset_name = os.path.basename(path).split(".")[0]
-        output_path = f"outputs/customer_segments.csv"
+        output_path = "outputs/customer_segments.csv"
 
         rfm.to_csv(output_path, index=False)
 
@@ -102,9 +104,10 @@ def run():
 
         result = {
             "dataset": dataset_name,
-            "rows": len(rfm),
+            "rows": int(len(rfm)),
+            "clustering": metrics,  # ✅ NOW USED
             "churn": churn_metrics,
-            "drift_detected": drift
+            "drift_detected": bool(drift)
         }
 
         all_results.append(result)
