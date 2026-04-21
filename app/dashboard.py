@@ -217,6 +217,8 @@ if df is not None and len(df) > 0:
 
     with tab2:
         if cluster_col:
+            
+            st.info("📊 Final clusters derived from hybrid clustering (KMeans + DBSCAN)")
 
             st.subheader("Cluster Distribution")
 
