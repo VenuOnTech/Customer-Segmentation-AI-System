@@ -63,7 +63,7 @@ def run():
         # ==============================
         rfm, kmeans, scaler, metrics = run_kmeans(rfm, config)
 
-        print(f"📊 Clustering Metrics: {metrics}")  # ✅ USE metrics
+        print(f"📊 Clustering Metrics: {metrics}")
 
         if "Final_Cluster" in rfm.columns:
             rfm["Cluster"] = rfm["Final_Cluster"]
@@ -72,8 +72,8 @@ def run():
         # PREDICTION
         # ==============================
         rfm = predict_future_purchase(rfm)
-        
-        # Ensure required columns exist for dashboard
+
+        # Ensure required columns
         if "Purchase_Probability" not in rfm.columns:
             rfm["Purchase_Probability"] = 0.0
 
@@ -82,43 +82,33 @@ def run():
 
         churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
 
-        # ✅ Make JSON-safe
         churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
         # ==============================
-        # EXPLAINABILITY (ROBUST 🔥)
+        # EXPLAINABILITY (FIXED)
         # ==============================
-        X = rfm[feature_cols].copy()
-
         try:
+            X = rfm[feature_cols].copy()
             explanations = generate_shap_explanations(churn_model, X)
 
-            # Ensure correct length
-            if len(explanations) != len(rfm):
-                print("⚠️ SHAP size mismatch → fixing alignment")
-
-                explanations_fixed = ["Not available"] * len(rfm)
-
-                for i in range(min(len(explanations), len(rfm))):
-                    explanations_fixed[i] = explanations[i]
-
-                rfm["Explanation"] = explanations_fixed
-            else:
+            if len(explanations) == len(rfm):
                 rfm["Explanation"] = explanations
-
-            print("✅ Explainability added successfully")
+                print("✅ SHAP explanations added")
+            else:
+                raise ValueError("SHAP length mismatch")
 
         except Exception as e:
             print(f"⚠️ SHAP failed: {str(e)}")
 
-        rfm["Explanation"] = rfm.apply(
-            lambda row: (
-                "High churn risk due to low frequency and high recency"
-                if row.get("Churn", 0) == 1
-                else "Stable customer with consistent purchase behavior"
-            ),
-            axis=1
-        )
+            # fallback explanation
+            rfm["Explanation"] = rfm.apply(
+                lambda row: (
+                    "High churn risk: low frequency & high recency"
+                    if row.get("Churn", 0) == 1
+                    else "Stable customer: consistent purchase pattern"
+                ),
+                axis=1
+            )
 
         # ==============================
         # DRIFT
@@ -126,7 +116,7 @@ def run():
         drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
 
         if drift:
-            print("⚠️ Drift detected → triggering recalibration")
+            print("⚠️ Drift detected → recalibration triggered")
             from src.monitoring.recalibration import recalibrate
             recalibration_status = recalibrate()
         else:

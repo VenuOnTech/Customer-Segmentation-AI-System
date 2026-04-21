@@ -34,9 +34,8 @@ jobs:
         with:
           python-version: "3.10"
 
-      # ✅ ADD THIS HERE
       - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV          
+        run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
 
       # ==============================
       # 🔹 CACHE
@@ -52,7 +51,6 @@ jobs:
       # ==============================
       - name: Install dependencies
         run: |
-          echo "📦 Installing dependencies..."
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -85,25 +83,19 @@ jobs:
       # 🔹 TESTS
       # ==============================
       - name: Run tests
-        run: |
-          echo "🧪 Running tests..."
-          python tests/test_pipeline.py
+        run: python tests/test_pipeline.py
 
       # ==============================
       # 🔹 RUN PIPELINE
       # ==============================
       - name: Run ML pipeline
-        run: |
-          echo "🚀 Running ML pipeline..."
-          python main.py
+        run: python main.py
 
       # ==============================
       # 🔹 VERIFY OUTPUT
       # ==============================
       - name: Verify outputs
         run: |
-          echo "🔍 Checking outputs..."
-
           if [ ! -f outputs/customer_segments.csv ]; then
             echo "❌ Output missing!"
             exit 1
@@ -114,7 +106,38 @@ jobs:
           head -5 outputs/customer_segments.csv
 
       # ==============================
-      # 🔹 UPLOAD ARTIFACTS
+      # 🔥 DELETE OLD RELEASE (CRITICAL FIX)
+      # ==============================
+      - name: Delete old 'latest' release
+        continue-on-error: true
+        run: |
+          echo "🧹 Cleaning old release..."
+
+          gh release delete latest -y || true
+          git push origin :refs/tags/latest || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==============================
+      # 🔥 CREATE FRESH RELEASE
+      # ==============================
+      - name: Create fresh GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: "Latest ML Pipeline Output"
+          files: outputs/customer_segments.csv
+          body: |
+            ✅ Auto-generated ML results
+
+            - Dataset: Online Retail
+            - Pipeline: Customer Segmentation AI
+            - Run: ${{ github.run_number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==============================
+      # 🔹 UPLOAD ARTIFACTS (OPTIONAL)
       # ==============================
       - name: Upload outputs
         uses: actions/upload-artifact@v4
@@ -131,25 +154,6 @@ jobs:
           retention-days: 30
 
       # ==============================
-      # 🔹 RELEASE (FIXED 🔥)
-      # ==============================
-      - name: Create GitHub Release
-        if: success()
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: latest
-          name: "Latest ML Pipeline Output"
-          files: outputs/customer_segments.csv
-          body: |
-            ✅ Auto-generated ML results
-
-            - Dataset: Online Retail
-            - Pipeline: Customer Segmentation AI
-            - Run: ${{ github.run_number }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ==============================
       # 🔹 SUCCESS LOG
       # ==============================
       - name: Pipeline Summary
@@ -161,5 +165,5 @@ jobs:
           echo "📊 Data processed"
           echo "🤖 Models trained"
           echo "📈 Results generated"
-          echo "🚀 Release updated (latest)"
+          echo "🚀 Release UPDATED (latest)"
           echo "=================================="
