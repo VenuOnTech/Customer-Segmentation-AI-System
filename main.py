@@ -91,6 +91,13 @@ def run():
         # ==============================
         drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
 
+        if drift:
+            print("⚠️ Drift detected → triggering recalibration")
+            from src.monitoring.recalibration import recalibrate
+            recalibration_status = recalibrate()
+        else:
+            recalibration_status = {"status": "not_required"}
+
         # ==============================
         # SAVE
         # ==============================
@@ -105,9 +112,10 @@ def run():
         result = {
             "dataset": dataset_name,
             "rows": int(len(rfm)),
-            "clustering": metrics,  # ✅ NOW USED
+            "clustering": metrics,
             "churn": churn_metrics,
-            "drift_detected": bool(drift)
+            "drift_detected": bool(drift),
+            "recalibration": recalibration_status
         }
 
         all_results.append(result)

@@ -34,14 +34,6 @@ jobs:
         with:
           python-version: "3.10"
 
-      # ==============================
-      # 🔹 PYTHON SETUP
-      # ==============================
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
       # ✅ ADD THIS HERE
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV          

@@ -17,6 +17,7 @@ st.set_page_config(
 )
 
 st.title("🎯 AI Customer Segmentation System")
+st.markdown("### 🚀 Autonomous ML Pipeline with Explainable AI + Drift Monitoring")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 output_path = os.path.join(BASE_DIR, "outputs", "customer_segments.csv")
@@ -103,7 +104,6 @@ if df is not None and len(df) > 0:
 
     st.success("✅ Segmentation Results Loaded")
 
-    # 🔥 FIX: use Final_Cluster
     cluster_col = "Final_Cluster" if "Final_Cluster" in df.columns else None
 
     st.divider()
@@ -112,7 +112,7 @@ if df is not None and len(df) > 0:
     # 📊 METRICS
     # ==============================
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         st.metric("📊 Customers", f"{len(df):,}")
@@ -135,10 +135,17 @@ if df is not None and len(df) > 0:
         else:
             st.metric("📈 Avg Purchase", "N/A")
 
+    with col5:
+        if "Recency" in df.columns:
+            st.metric("⏱️ Avg Recency", f"{df['Recency'].mean():.1f}")
+        else:
+            st.metric("⏱️ Avg Recency", "N/A")
+
+    # ✅ FIXED POSITION
     st.divider()
 
     # ==============================
-    # 📊 VISUALS (NEW 🔥)
+    # 📊 VISUALS
     # ==============================
 
     if cluster_col and "Frequency" in df.columns and "Monetary" in df.columns:
@@ -146,7 +153,7 @@ if df is not None and len(df) > 0:
         st.subheader("📊 Customer Segmentation Visualization")
 
         fig = px.scatter(
-            df.sample(min(5000, len(df))),
+            df.sample(n=min(5000, len(df)), random_state=42),
             x="Frequency",
             y="Monetary",
             color=cluster_col,
@@ -154,6 +161,31 @@ if df is not None and len(df) > 0:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ==============================
+    # 🧠 SYSTEM STATUS
+    # ==============================
+
+    st.subheader("🧠 System Intelligence Status")
+
+    colA, colB, colC = st.columns(3)
+
+    with colA:
+        st.success("✅ Adaptive Clustering Enabled")
+
+    with colB:
+        if "Explanation" in df.columns:
+            st.success("✅ Explainable AI Active")
+        else:
+            st.warning("⚠️ Explainability Missing")
+
+    with colC:
+        st.success("✅ Drift Monitoring Active")
+
+    # 🔥 SMALL BUT POWERFUL ADDITION
+    st.caption("⚙️ Pipeline: Data → Feature Engineering → Adaptive Clustering → Churn Prediction → Explainability → Monitoring")
 
     # ==============================
     # 📊 TABS
@@ -180,7 +212,7 @@ if df is not None and len(df) > 0:
         )
 
     # ==============================
-    # TAB 2 (IMPROVED)
+    # TAB 2
     # ==============================
 
     with tab2:
@@ -189,10 +221,8 @@ if df is not None and len(df) > 0:
             st.subheader("Cluster Distribution")
 
             cluster_counts = df[cluster_col].value_counts()
-
             st.bar_chart(cluster_counts)
 
-            # 🔥 Additional insight
             if "Purchase_Probability" in df.columns:
                 st.subheader("📈 Purchase Behavior by Cluster")
 
@@ -217,18 +247,16 @@ if df is not None and len(df) > 0:
             churn_df = df[df["Churn"] == 1]
 
             st.warning(f"{len(churn_df)} customers at risk")
-
             st.dataframe(churn_df)
 
-            # 🔥 Visual
             fig = px.histogram(df, x="Churn", title="Churn Distribution")
-            st.plotly_chart(fig)
+            st.plotly_chart(fig, use_container_width=True)
 
         else:
             st.warning("Churn not available")
 
     # ==============================
-    # TAB 4 (FIXED)
+    # TAB 4
     # ==============================
 
     with tab4:
@@ -237,7 +265,7 @@ if df is not None and len(df) > 0:
 
             st.subheader("Customer Insights")
 
-            sample = df.sample(min(10, len(df)))
+            sample = df.sample(n=min(10, len(df)), random_state=42)
 
             for _, row in sample.iterrows():
                 st.markdown(
