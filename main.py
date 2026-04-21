@@ -62,7 +62,7 @@ def run():
         # ==============================
         # SEGMENTATION
         # ==============================
-        rfm, kmeans, scaler = run_kmeans(rfm, config)
+        rfm, kmeans, scaler, metrics = run_kmeans(rfm, config)
 
         # unify column for downstream
         if "Final_Cluster" in rfm.columns:

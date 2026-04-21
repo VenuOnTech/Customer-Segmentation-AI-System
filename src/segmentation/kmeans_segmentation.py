@@ -85,7 +85,8 @@ def run_kmeans(rfm, config):
     # ==============================
     rfm["KMeans_Cluster"] = kmeans_labels
     rfm["DBSCAN_Cluster"] = dbscan_labels
-    rfm["Cluster"] = final_labels  # 🔥 FINAL LABEL (IMPORTANT)
+    rfm["Cluster"] = final_labels
+    rfm["Final_Cluster"] = final_labels  # ✅ ADD THIS
 
     # ==============================
     # METRICS
