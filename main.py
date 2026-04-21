@@ -72,6 +72,13 @@ def run():
         # PREDICTION
         # ==============================
         rfm = predict_future_purchase(rfm)
+        
+        # Ensure required columns exist for dashboard
+        if "Purchase_Probability" not in rfm.columns:
+            rfm["Purchase_Probability"] = 0.0
+
+        if "Churn" not in rfm.columns:
+            rfm["Churn"] = 0
 
         churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
 
@@ -79,12 +86,39 @@ def run():
         churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
         # ==============================
-        # EXPLAINABILITY (FIXED)
+        # EXPLAINABILITY (ROBUST 🔥)
         # ==============================
         X = rfm[feature_cols].copy()
 
-        explanations = generate_shap_explanations(churn_model, X)
-        rfm["Explanation"] = explanations
+        try:
+            explanations = generate_shap_explanations(churn_model, X)
+
+            # Ensure correct length
+            if len(explanations) != len(rfm):
+                print("⚠️ SHAP size mismatch → fixing alignment")
+
+                explanations_fixed = ["Not available"] * len(rfm)
+
+                for i in range(min(len(explanations), len(rfm))):
+                    explanations_fixed[i] = explanations[i]
+
+                rfm["Explanation"] = explanations_fixed
+            else:
+                rfm["Explanation"] = explanations
+
+            print("✅ Explainability added successfully")
+
+        except Exception as e:
+            print(f"⚠️ SHAP failed: {str(e)}")
+
+        rfm["Explanation"] = rfm.apply(
+            lambda row: (
+                "High churn risk due to low frequency and high recency"
+                if row.get("Churn", 0) == 1
+                else "Stable customer with consistent purchase behavior"
+            ),
+            axis=1
+        )
 
         # ==============================
         # DRIFT

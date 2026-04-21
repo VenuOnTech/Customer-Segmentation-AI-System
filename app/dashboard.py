@@ -160,7 +160,7 @@ if df is not None and len(df) > 0:
             title="Customer Segments"
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.divider()
 
@@ -176,7 +176,7 @@ if df is not None and len(df) > 0:
         st.success("✅ Adaptive Clustering Enabled")
 
     with colB:
-        if "Explanation" in df.columns:
+        if "Explanation" in df.columns and df["Explanation"].notna().any():
             st.success("✅ Explainable AI Active")
         else:
             st.warning("⚠️ Explainability Missing")
@@ -203,7 +203,7 @@ if df is not None and len(df) > 0:
     # ==============================
 
     with tab1:
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
         st.download_button(
             "📥 Download CSV",
@@ -232,7 +232,7 @@ if df is not None and len(df) > 0:
                     y="Purchase_Probability",
                     title="Purchase Probability Distribution"
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         else:
             st.warning("No cluster data found")
@@ -250,7 +250,7 @@ if df is not None and len(df) > 0:
             st.dataframe(churn_df)
 
             fig = px.histogram(df, x="Churn", title="Churn Distribution")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         else:
             st.warning("Churn not available")
@@ -261,7 +261,7 @@ if df is not None and len(df) > 0:
 
     with tab4:
 
-        if "Explanation" in df.columns:
+        if "Explanation" in df.columns and df["Explanation"].notna().any():
 
             st.subheader("Customer Insights")
 
