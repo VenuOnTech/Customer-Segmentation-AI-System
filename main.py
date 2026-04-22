@@ -20,6 +20,7 @@ from src.monitoring.data_lineage import log_data_lineage
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
 from src.explainability.shap_explainer import generate_shap_explanations
+from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
 
 
 def run():
@@ -83,13 +84,12 @@ def run():
         churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
         # ==============================
-        # EXPLAINABILITY (ROBUST ✅)
+        # EXPLAINABILITY
         # ==============================
         try:
-            # Ensure features exist
             valid_features = [col for col in feature_cols if col in rfm.columns]
 
-            if len(valid_features) == 0:
+            if not valid_features:
                 raise ValueError("No valid features for SHAP")
 
             X = rfm[valid_features].copy()
@@ -99,13 +99,11 @@ def run():
             if explanations is None or len(explanations) == 0:
                 raise ValueError("Empty SHAP output")
 
-            # Fix length mismatch
             if len(explanations) != len(rfm):
                 explanations = list(explanations)[:len(rfm)]
                 explanations += [""] * (len(rfm) - len(explanations))
 
             rfm["Explanation"] = explanations
-
             print("✅ SHAP explanations generated")
 
         except Exception as e:
@@ -113,15 +111,17 @@ def run():
             rfm["Explanation"] = ""
 
         # ==============================
-        # SMART FALLBACK (IMPORTANT 🔥)
+        # FALLBACK EXPLANATIONS
         # ==============================
         def generate_fallback(row):
-            if row.get("Churn", 0) == 1:
-                return "High churn risk due to low purchase frequency and long inactivity"
-            elif row.get("Purchase_Probability", 0) > 0.7:
-                return "High value customer with strong purchase likelihood"
+            if row["Recency"] > 100:
+                return "Customer inactive for long period"
+            elif row["Frequency"] < 2:
+                return "Low engagement customer"
+            elif row["Monetary"] > rfm["Monetary"].mean():
+                return "High value customer"
             else:
-                return "Moderate engagement customer with stable behavior"
+                return "Moderate activity customer"
 
         rfm["Explanation"] = rfm.apply(
             lambda row: row["Explanation"]
@@ -136,16 +136,33 @@ def run():
         drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
 
         if drift:
-            print("⚠️ Drift detected → recalibration triggered")
             from src.monitoring.recalibration import recalibrate
             recalibration_status = recalibrate()
         else:
             recalibration_status = {"status": "not_required"}
 
         # ==============================
+        # FEEDBACK LOOP (SAFE FIX)
+        # ==============================
+        try:
+            feedback_df = collect_feedback()
+
+            if "Actual_Churn" in feedback_df.columns:
+                min_len = min(len(rfm), len(feedback_df))
+
+                X_fb = rfm.select_dtypes(include=["number"]).iloc[:min_len]
+                y_fb = feedback_df["Actual_Churn"].iloc[:min_len]
+
+                churn_model = retrain_with_feedback(churn_model, X_fb, y_fb)
+
+                print("✅ Feedback-based retraining complete")
+
+        except Exception as e:
+            print(f"⚠️ Feedback loop skipped: {e}")
+
+        # ==============================
         # SAVE
         # ==============================
-        dataset_name = os.path.basename(path).split(".")[0]
         output_path = "outputs/customer_segments.csv"
 
         rfm.to_csv(output_path, index=False)
@@ -153,16 +170,14 @@ def run():
         save_models(kmeans, churn_model, scaler)
         log_data_lineage(data_version, output_path)
 
-        result = {
-            "dataset": dataset_name,
+        all_results.append({
+            "dataset": os.path.basename(path),
             "rows": int(len(rfm)),
             "clustering": metrics,
             "churn": churn_metrics,
             "drift_detected": bool(drift),
             "recalibration": recalibration_status
-        }
-
-        all_results.append(result)
+        })
 
     with open("outputs/final_report.json", "w") as f:
         json.dump(all_results, f, indent=4)

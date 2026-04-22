@@ -65,7 +65,7 @@ def generate_shap_explanations(model, X, max_samples=500):
 
             explanations.append(explanation)
 
-        full_explanations = ["Not computed"] * len(X)
+        full_explanations = [""] * len(X)
 
         for idx, exp in zip(X_sample.index, explanations):
             full_explanations[idx] = exp

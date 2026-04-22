@@ -3,19 +3,23 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from src.feature_engineering.feature_selection import select_features
 from src.feature_engineering.feature_weighting import apply_feature_weights
+from src.optimization.rl_optimizer import optimize_k_rl
 import numpy as np
+
+
+# ✅ FIX: Define evaluation function (MISSING BEFORE)
+def evaluate_clustering(X, labels):
+    try:
+        return silhouette_score(X, labels)
+    except:
+        return -1
 
 
 def find_optimal_k(X_scaled, max_k=8):
     scores = {}
 
     for k in range(2, max_k + 1):
-        model = KMeans(
-            n_clusters=k,
-            random_state=42,
-            n_init=10
-        )
-
+        model = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = model.fit_predict(X_scaled)
         score = silhouette_score(X_scaled, labels)
 
@@ -45,11 +49,18 @@ def run_kmeans(rfm, config):
     X_scaled = scaler.fit_transform(X)
 
     # ==============================
-    # K SELECTION
+    # K SELECTION (FIXED RL BLOCK)
     # ==============================
     if config["clustering"].get("adaptive", False):
-        n_clusters = find_optimal_k(X_scaled)
-        print(f"✅ Adaptive K: {n_clusters}")
+
+        def evaluate_fn(k):
+            model = KMeans(n_clusters=k, random_state=42, n_init=10)
+            labels = model.fit_predict(X_scaled)
+            return evaluate_clustering(X_scaled, labels)
+
+        n_clusters = optimize_k_rl(X_scaled, evaluate_fn)
+        print(f"🤖 RL Optimized K: {n_clusters}")
+
     else:
         n_clusters = config["clustering"]["n_clusters"]
 
@@ -67,12 +78,7 @@ def run_kmeans(rfm, config):
     # ==============================
     # DBSCAN MODEL
     # ==============================
-    dbscan = DBSCAN(
-        eps=0.5,
-        min_samples=5,
-        n_jobs=-1
-    )
-
+    dbscan = DBSCAN(eps=0.5, min_samples=5, n_jobs=-1)
     dbscan_labels = dbscan.fit_predict(X_scaled)
 
     # ==============================
@@ -81,12 +87,12 @@ def run_kmeans(rfm, config):
     final_labels = np.where(dbscan_labels == -1, kmeans_labels, dbscan_labels)
 
     # ==============================
-    # SAVE TO DATAFRAME
+    # SAVE RESULTS
     # ==============================
     rfm["KMeans_Cluster"] = kmeans_labels
     rfm["DBSCAN_Cluster"] = dbscan_labels
     rfm["Cluster"] = final_labels
-    rfm["Final_Cluster"] = final_labels  # ✅ ADD THIS
+    rfm["Final_Cluster"] = final_labels
 
     # ==============================
     # METRICS

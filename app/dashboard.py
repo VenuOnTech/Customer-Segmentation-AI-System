@@ -121,11 +121,12 @@ if df is not None and len(df) > 0:
             st.dataframe(df[df["Churn"] == 1])
 
     with tab4:
-        if "Explanation" in df:
+        if "Explanation" in df and df["Explanation"].notnull().any():
             sample = df.sample(n=min(10, len(df)))
 
             for _, row in sample.iterrows():
-                st.write(f"Customer {int(row.get('CustomerID', 0))} → {row['Explanation']}")
+                if row["Explanation"] not in ["", "Not computed"]:
+                    st.write(f"Customer {int(row.get('CustomerID', 0))} → {row['Explanation']}")
 
 else:
 

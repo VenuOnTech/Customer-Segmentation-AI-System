@@ -29,3 +29,15 @@ def optimize_k_rl(X_scaled, evaluate_fn, episodes=10):
     best_k = max(agent.q_table, key=agent.q_table.get)
     print(f"🤖 RL Selected K: {best_k}")
     return best_k
+
+def evaluate_clustering(X_scaled, labels):
+    from sklearn.metrics import silhouette_score
+
+    try:
+        sil = silhouette_score(X_scaled, labels)
+    except:
+        sil = 0
+
+    cluster_balance = len(set(labels)) / len(labels)
+
+    return 0.7 * sil + 0.3 * cluster_balance
