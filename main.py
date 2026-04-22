@@ -113,6 +113,18 @@ def run():
         # ==============================
         # FALLBACK EXPLANATIONS
         # ==============================
+        def is_weak_explanation(exp):
+            if exp in ["", None, "Not computed"]:
+                return True
+            
+            exp = str(exp)
+
+            # ❌ weak if all values ~0
+            numbers = [float(x.split(":")[1]) for x in exp.split(",") if ":" in x]
+
+            return all(abs(n) < 0.05 for n in numbers)
+
+
         def generate_fallback(row):
             if row["Recency"] > 100:
                 return "Customer inactive for long period"
@@ -123,10 +135,13 @@ def run():
             else:
                 return "Moderate activity customer"
 
+
+        rfm["Explanation"] = rfm["Explanation"].fillna("").astype(str)
+
         rfm["Explanation"] = rfm.apply(
-            lambda row: row["Explanation"]
-            if row["Explanation"] not in ["", None, "Not computed"]
-            else generate_fallback(row),
+            lambda row: generate_fallback(row)
+            if is_weak_explanation(row["Explanation"])
+            else row["Explanation"],
             axis=1
         )
 
