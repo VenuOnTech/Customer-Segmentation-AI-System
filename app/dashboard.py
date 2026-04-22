@@ -23,15 +23,15 @@ local_path = os.path.join(BASE_DIR, "outputs", "customer_segments.csv")
 # ==============================
 
 def load_data():
-    url = "https://raw.githubusercontent.com/VenuOnTech/Customer-Segmentation-AI-System/main/outputs/customer_segments.csv"
+    url = "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/latest/customer_segments.csv"
 
     try:
-        st.info("📥 Fetching latest data from GitHub...")
+        st.info("📥 Fetching latest data from GitHub Release...")
         response = requests.get(url)
 
         if response.status_code == 200:
             df = pd.read_csv(io.StringIO(response.text))
-            st.success("✅ Loaded GitHub data")
+            st.success("✅ Loaded latest release data")
             return df
 
     except Exception as e:

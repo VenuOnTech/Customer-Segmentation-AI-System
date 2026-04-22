@@ -35,4 +35,4 @@ def train_deep_churn(rfm):
 
     feature_cols = X.columns.tolist()
 
-    return model, {"accuracy": acc}, feature_cols
+    return model, {"accuracy": float(acc)}, list(feature_cols)

@@ -36,6 +36,10 @@ def generate_shap_explanations(model, X, max_samples=500):
     else:
         X_sample = X
 
+    # 🔥 HARD LIMIT FOR CI SAFETY
+    if len(X_sample) > 200:
+        X_sample = X_sample.sample(200, random_state=42)
+
     X_sample = X_sample.astype(float)
 
     try:

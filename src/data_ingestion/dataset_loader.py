@@ -6,16 +6,19 @@ def load_all_datasets(data_dir="data/raw"):
     dfs = []
 
     for file in os.listdir(data_dir):
-        if file.endswith(".csv") or file.endswith(".xlsx"):
-            path = os.path.join(data_dir, file)
+        path = os.path.join(data_dir, file)
 
+        try:
             if file.endswith(".csv"):
                 df = pd.read_csv(path)
             else:
                 df = pd.read_excel(path)
 
-            df["__source_file"] = file
             dfs.append(df)
+
+        except Exception as e:
+            print(f"⚠️ Skipping file {file}: {e}")
+            continue
 
     if not dfs:
         raise ValueError("No datasets found")

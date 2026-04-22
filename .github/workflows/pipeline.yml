@@ -106,19 +106,6 @@ jobs:
           head -5 outputs/customer_segments.csv
 
       # ==============================
-      # 🔥 DELETE OLD RELEASE (CRITICAL FIX)
-      # ==============================
-      - name: Delete old 'latest' release
-        continue-on-error: true
-        run: |
-          echo "🧹 Cleaning old release..."
-
-          gh release delete latest -y || true
-          git push origin :refs/tags/latest || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ==============================
       # 🔥 CREATE FRESH RELEASE
       # ==============================
       - name: Create fresh GitHub Release

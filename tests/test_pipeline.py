@@ -51,7 +51,7 @@ def test_schema_detection():
         assert mapping['price'] == 'UnitPrice', "price mapping incorrect"
         
         print("✅ Schema detection test passed")
-        return True
+        assert mapping['customer_id'] == 'CustomerID'
     except Exception as e:
         print(f"❌ Schema detection test failed: {e}")
         return False
@@ -74,7 +74,7 @@ def test_schema_detection_missing_columns():
         except ValueError as e:
             if "Missing required columns" in str(e):
                 print("✅ Schema detection error handling test passed")
-                return True
+                assert mapping['customer_id'] == 'CustomerID'
             else:
                 print(f"❌ Wrong error message: {e}")
                 return False
@@ -116,7 +116,7 @@ def test_data_cleaning():
         assert df_clean['CustomerID'].isnull().sum() == 0, "Found null CustomerID"
         
         print("✅ Data cleaning test passed")
-        return True
+        assert mapping['customer_id'] == 'CustomerID'
     except Exception as e:
         print(f"❌ Data cleaning test failed: {e}")
         return False
@@ -148,7 +148,7 @@ def test_rfm_creation():
         assert len(rfm) == 3, f"Expected 3 customers, got {len(rfm)}"
         
         print("✅ RFM creation test passed")
-        return True
+        assert mapping['customer_id'] == 'CustomerID'
     except Exception as e:
         print(f"❌ RFM creation test failed: {e}")
         return False
