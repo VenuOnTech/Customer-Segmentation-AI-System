@@ -108,7 +108,12 @@ if df is not None and len(df) > 0:
 
     with tab3:
         if "Churn" in df:
-            st.dataframe(df[df["Churn"] == 1], use_container_width=True)
+            churn_df = df[df["Churn"] == 1]
+
+            if len(churn_df) == 0:
+                st.warning("⚠️ No churn customers detected")
+            else:
+                st.dataframe(churn_df, use_container_width=True)
 
     with tab4:
         st.subheader("🔍 Customer Insights")

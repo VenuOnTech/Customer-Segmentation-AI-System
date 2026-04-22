@@ -7,10 +7,19 @@ def train_deep_churn(rfm):
 
     X = rfm.select_dtypes(include=["number"]).drop(columns=["Cluster"], errors="ignore")
 
+    # ✅ Smarter churn logic (realistic)
     if "Churn" not in rfm.columns:
-        rfm["Churn"] = (rfm["Frequency"] < 2).astype(int)
+        rfm["Churn"] = (
+            (rfm["Recency"] > rfm["Recency"].quantile(0.75)) |
+            (rfm["Frequency"] <= 2)
+        ).astype(int)
 
     y = rfm["Churn"]
+    
+    # ✅ Prevent useless model training
+    if y.nunique() < 2:
+        print("⚠️ Only one class in churn → skipping training")
+        return None, {"accuracy": 0.0}, list(X.columns)
 
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(

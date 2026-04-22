@@ -95,11 +95,18 @@ def run():
             # PREDICTION
             # ==============================
             rfm = predict_future_purchase(rfm)
+            
+            # ✅ Normalize probability (fix 1000% issue)
+            if "Purchase_Probability" in rfm.columns:
+                rfm["Purchase_Probability"] = rfm["Purchase_Probability"].clip(0, 1)
 
             rfm["Purchase_Probability"] = rfm.get("Purchase_Probability", 0.0)
             rfm["Churn"] = rfm.get("Churn", 0)
 
             churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
+
+            if churn_model is None:
+                print("⚠️ Churn model skipped due to single class")
             churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
             print(f"🤖 Churn Model Metrics: {churn_metrics}")
