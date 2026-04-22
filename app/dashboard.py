@@ -121,12 +121,31 @@ if df is not None and len(df) > 0:
             st.dataframe(df[df["Churn"] == 1])
 
     with tab4:
-        if "Explanation" in df and df["Explanation"].notnull().any():
-            sample = df.sample(n=min(10, len(df)))
+        st.subheader("🔍 Customer Insights")
 
-            for _, row in sample.iterrows():
-                if row["Explanation"] not in ["", "Not computed"]:
-                    st.write(f"Customer {int(row.get('CustomerID', 0))} → {row['Explanation']}")
+        if "Explanation" in df.columns:
+
+            # ✅ CLEAN explanations properly
+            df["Explanation"] = df["Explanation"].fillna("").astype(str)
+            df["Explanation"] = df["Explanation"].str.strip()
+
+            # 🔍 DEBUG (RUN ONCE, then remove)
+            st.write("Explanation unique values:", df["Explanation"].unique()[:10])
+
+            # ✅ FILTER valid rows
+            valid_df = df[df["Explanation"] != ""]
+
+            if len(valid_df) == 0:
+                st.warning("⚠️ No valid insights available (all explanations empty)")
+            else:
+                sample = valid_df.sample(n=min(10, len(valid_df)))
+
+                for _, row in sample.iterrows():
+                    customer_id = row.get("CustomerID", "Unknown")
+                    st.write(f"Customer {customer_id} → {row['Explanation']}")
+
+        else:
+            st.error("❌ Explanation column missing")
 
 else:
 
