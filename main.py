@@ -37,6 +37,11 @@ def run():
 
         df = load_data(path)
 
+        # ✅ Prevent crash on empty datasets
+        if df is None or df.empty:
+            print("⚠️ Empty dataset, skipping")
+            continue
+
         mapping = detect_columns(df)
         validate_data(df, mapping, strict=False)
 
@@ -84,7 +89,7 @@ def run():
         churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
         # ==============================
-        # EXPLAINABILITY
+        # EXPLAINABILITY (FIXED)
         # ==============================
         try:
             valid_features = [col for col in feature_cols if col in rfm.columns]
@@ -99,9 +104,9 @@ def run():
             if explanations is None or len(explanations) == 0:
                 raise ValueError("Empty SHAP output")
 
-            if len(explanations) != len(rfm):
-                explanations = list(explanations)[:len(rfm)]
-                explanations += [""] * (len(rfm) - len(explanations))
+            # Align length
+            explanations = list(explanations)[:len(rfm)]
+            explanations += [""] * (len(rfm) - len(explanations))
 
             rfm["Explanation"] = explanations
             print("✅ SHAP explanations generated")
@@ -109,6 +114,12 @@ def run():
         except Exception as e:
             print(f"⚠️ SHAP failed: {str(e)}")
             rfm["Explanation"] = ""
+
+        # ✅ Always clean explanations (FIXED INDENTATION)
+        rfm["Explanation"] = rfm["Explanation"].replace(
+            ["Not computed", "Model explanation unavailable"],
+            ""
+        )
 
         # ==============================
         # FALLBACK EXPLANATIONS
@@ -123,27 +134,24 @@ def run():
                     for x in str(exp).split(",")
                     if ":" in x
                 ]
-
                 return len(values) == 0 or all(abs(v) < 0.05 for v in values)
-
             except:
                 return True
 
         def generate_smart_explanation(row):
-            if row["Recency"] > 100:
+            if "Recency" in row and row["Recency"] > 100:
                 return "Customer inactive for a long time → high churn risk"
 
-            if row["Frequency"] < 2:
+            if "Frequency" in row and row["Frequency"] < 2:
                 return "Low engagement customer → needs reactivation"
 
-            if row["Monetary"] > rfm["Monetary"].mean():
+            if "Monetary" in row and row["Monetary"] > rfm["Monetary"].mean():
                 return "High value customer → prioritize retention"
 
-            if row["Purchase_Probability"] > 0.7:
+            if "Purchase_Probability" in row and row["Purchase_Probability"] > 0.7:
                 return "Likely to purchase again → target with offers"
 
             return "Moderate activity customer"
-
 
         rfm["Explanation"] = rfm["Explanation"].fillna("").astype(str)
 
@@ -155,9 +163,12 @@ def run():
         )
 
         # ==============================
-        # DRIFT
+        # DRIFT (SAFE VERSION)
         # ==============================
-        drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
+        if "Frequency" in rfm.columns:
+            drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
+        else:
+            drift = False
 
         if drift:
             from src.monitoring.recalibration import recalibrate
@@ -166,7 +177,7 @@ def run():
             recalibration_status = {"status": "not_required"}
 
         # ==============================
-        # FEEDBACK LOOP (SAFE FIX)
+        # FEEDBACK LOOP
         # ==============================
         try:
             feedback_df = collect_feedback()
@@ -185,9 +196,10 @@ def run():
             print(f"⚠️ Feedback loop skipped: {e}")
 
         # ==============================
-        # SAVE
+        # SAVE (NO OVERWRITE FIX)
         # ==============================
-        output_path = "outputs/customer_segments.csv"
+        file_name = os.path.basename(path).replace(".csv", "")
+        output_path = f"outputs/customer_segments_{file_name}.csv"
 
         rfm.to_csv(output_path, index=False)
 
@@ -195,7 +207,7 @@ def run():
         log_data_lineage(data_version, output_path)
 
         all_results.append({
-            "dataset": os.path.basename(path),
+            "dataset": file_name,
             "rows": int(len(rfm)),
             "clustering": metrics,
             "churn": churn_metrics,

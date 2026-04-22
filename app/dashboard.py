@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import requests
-from datetime import datetime
+import io   # ✅ FIXED
 import plotly.express as px
 
 st.set_page_config(
@@ -15,7 +15,7 @@ st.title("🎯 AI Customer Segmentation System")
 st.markdown("### 🚀 Autonomous ML Pipeline with Explainable AI + Drift Monitoring")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-output_path = os.path.join(BASE_DIR, "outputs", "customer_segments.csv")
+local_path = os.path.join(BASE_DIR, "outputs", "customer_segments.csv")
 
 
 # ==============================
@@ -23,34 +23,24 @@ output_path = os.path.join(BASE_DIR, "outputs", "customer_segments.csv")
 # ==============================
 
 def load_data():
+    url = "https://raw.githubusercontent.com/VenuOnTech/Customer-Segmentation-AI-System/main/outputs/customer_segments.csv"
 
-    # 1️⃣ Try local file
-    if os.path.exists(output_path):
-        try:
-            df = pd.read_csv(output_path)
-            st.success("✅ Loaded local pipeline output")
-            return df
-        except:
-            pass
-
-    # 2️⃣ Try GitHub release
     try:
         st.info("📥 Fetching latest data from GitHub...")
-
-        url = "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/latest/customer_segments.csv"
-
         response = requests.get(url)
 
         if response.status_code == 200:
-            with open(output_path, "wb") as f:
-                f.write(response.content)
-
-            df = pd.read_csv(output_path)
-            st.success("✅ Loaded GitHub release data")
+            df = pd.read_csv(io.StringIO(response.text))
+            st.success("✅ Loaded GitHub data")
             return df
 
     except Exception as e:
         st.warning(f"⚠️ GitHub fetch failed: {str(e)}")
+
+    # ✅ FALLBACK
+    if os.path.exists(local_path):
+        st.info("📂 Loading local file...")
+        return pd.read_csv(local_path)
 
     return None
 
@@ -80,7 +70,7 @@ if df is not None and len(df) > 0:
 
     st.divider()
 
-    if cluster_col and "Frequency" in df.columns and "Monetary" in df.columns:
+    if cluster_col and {"Frequency", "Monetary"}.issubset(df.columns):
 
         fig = px.scatter(
             df.sample(n=min(5000, len(df))),
@@ -110,7 +100,7 @@ if df is not None and len(df) > 0:
     ])
 
     with tab1:
-        st.dataframe(df, width="stretch")
+        st.dataframe(df, use_container_width=True)
 
     with tab2:
         if cluster_col:
@@ -118,31 +108,27 @@ if df is not None and len(df) > 0:
 
     with tab3:
         if "Churn" in df:
-            st.dataframe(df[df["Churn"] == 1])
+            st.dataframe(df[df["Churn"] == 1], use_container_width=True)
 
     with tab4:
         st.subheader("🔍 Customer Insights")
 
         if "Explanation" in df.columns:
 
-            # ✅ CLEAN explanations properly
-            df["Explanation"] = df["Explanation"].fillna("").astype(str)
-            df["Explanation"] = df["Explanation"].str.strip()
+            df["Explanation"] = df["Explanation"].fillna("").astype(str).str.strip()
 
-            # 🔍 DEBUG (RUN ONCE, then remove)
-            st.write("Explanation unique values:", df["Explanation"].unique()[:10])
+            invalid_values = ["", "Not computed", "Model explanation unavailable"]
 
-            # ✅ FILTER valid rows
-            valid_df = df[df["Explanation"] != ""]
+            valid_df = df[~df["Explanation"].isin(invalid_values)]
 
             if len(valid_df) == 0:
-                st.warning("⚠️ No valid insights available (all explanations empty)")
+                st.warning("⚠️ No valid insights available")
             else:
                 sample = valid_df.sample(n=min(10, len(valid_df)))
 
                 for _, row in sample.iterrows():
                     customer_id = row.get("CustomerID", "Unknown")
-                    st.write(f"Customer {customer_id} → {row['Explanation']}")
+                    st.success(f"Customer {customer_id} → {row['Explanation']}")
 
         else:
             st.error("❌ Explanation column missing")
@@ -150,10 +136,3 @@ if df is not None and len(df) > 0:
 else:
 
     st.error("❌ No data available")
-
-    st.info("""
-    Fix:
-    1. Run pipeline → python main.py  
-    2. Upload outputs/customer_segments.csv to GitHub Release  
-    3. Refresh dashboard  
-    """)
