@@ -1,0 +1,4 @@
+CustomerID,Recency,Frequency,Monetary,Final_Cluster,Churn,Purchase_Probability,Explanation
+17850,10,5,500,1,0,0.45,"Frequency: 5.0, Monetary: 500"
+13047,2,10,900,0,0,0.83,"Frequency: 10.0, Recency: 2"
+12583,50,2,200,2,1,0.03,"Recency: 50.0, Frequency: 2"
