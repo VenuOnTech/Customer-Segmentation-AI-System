@@ -2,6 +2,29 @@ import shap
 import numpy as np
 
 
+# ==========================================
+# FEATURE INTERPRETATION (GLOBAL)
+# ==========================================
+def interpret_feature(feat, val):
+    direction = "high" if val > 0 else "low"
+
+    if "Recency" in feat:
+        return f"{direction} recency"
+    elif "Frequency" in feat:
+        return f"{direction} purchase frequency"
+    elif "Monetary" in feat:
+        return f"{direction} spending"
+    elif "Lifetime" in feat:
+        return f"{direction} customer lifetime"
+    elif "Velocity" in feat:
+        return f"{direction} purchase velocity"
+    else:
+        return f"{direction} {feat.lower()}"
+
+
+# ==========================================
+# MAIN SHAP FUNCTION
+# ==========================================
 def generate_shap_explanations(model, X, max_samples=500):
 
     # ==============================
@@ -38,25 +61,6 @@ def generate_shap_explanations(model, X, max_samples=500):
             shap_array = shap_values[1] if isinstance(shap_values, list) else shap_values
 
         # ==============================
-        # INTERPRETATION FUNCTION
-        # ==============================
-        def interpret_feature(feat, val):
-            direction = "high" if val > 0 else "low"
-
-            if "Recency" in feat:
-                return f"{direction} recency"
-            elif "Frequency" in feat:
-                return f"{direction} purchase frequency"
-            elif "Monetary" in feat:
-                return f"{direction} spending"
-            elif "Lifetime" in feat:
-                return f"{direction} customer lifetime"
-            elif "Velocity" in feat:
-                return f"{direction} purchase velocity"
-            else:
-                return f"{direction} {feat.lower()}"
-
-        # ==============================
         # GENERATE EXPLANATIONS
         # ==============================
         explanations = []
@@ -70,19 +74,19 @@ def generate_shap_explanations(model, X, max_samples=500):
                 for col, val in zip(X_sample.columns, values)
             }
 
-            # 🔥 FILTER meaningful features
-            top_features = [
-                (feat, val)
-                for feat, val in sorted(
-                    feature_impact.items(),
-                    key=lambda x: abs(x[1]),
-                    reverse=True
-                )
-                if abs(val) > 0.05
-            ][:2]
+            # 🔥 ALWAYS pick top 2 (NO HARD FILTER)
+            top_features = sorted(
+                feature_impact.items(),
+                key=lambda x: abs(x[1]),
+                reverse=True
+            )[:2]
 
-            if len(top_features) == 0:
-                explanation = "Not computed"
+            # ==============================
+            # HANDLE LOW SIGNAL CASE
+            # ==============================
+            if all(abs(v) < 0.01 for _, v in top_features):
+                explanation = "Low model confidence → weak behavioral signals"
+
             else:
                 interpreted = [interpret_feature(f, v) for f, v in top_features]
 
@@ -105,7 +109,7 @@ def generate_shap_explanations(model, X, max_samples=500):
 
     except Exception as e:
         print(f"⚠️ SHAP failed → fallback used: {e}")
-        return ["Fallback explanation"] * len(X)
+        return ["Model explanation unavailable"] * len(X)
 
 
 # ==========================================
@@ -143,7 +147,15 @@ def explain_customer(model, X_single):
             reverse=True
         )[:2]
 
-        return ", ".join([f"{k}: {round(v, 2)}" for k, v in top_features])
+        if all(abs(v) < 0.01 for _, v in top_features):
+            return "Low model confidence → weak behavioral signals"
+
+        interpreted = [interpret_feature(f, v) for f, v in top_features]
+
+        if any(v > 0 for _, v in top_features):
+            return "Churn risk influenced by " + " & ".join(interpreted)
+        else:
+            return "Stable customer due to " + " & ".join(interpreted)
 
     except Exception:
-        return "Fallback explanation"
+        return "Model explanation unavailable"
