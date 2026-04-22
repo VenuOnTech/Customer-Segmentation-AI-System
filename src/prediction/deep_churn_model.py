@@ -7,12 +7,22 @@ def train_deep_churn(rfm):
 
     X = rfm.select_dtypes(include=["number"]).drop(columns=["Cluster"], errors="ignore")
 
-    # ✅ Smarter churn logic (realistic)
-    if "Churn" not in rfm.columns:
+    # ==============================
+    # SMART CHURN DEFINITION (FIXED)
+    # ==============================
+    if "Churn" not in rfm.columns or rfm["Churn"].nunique() <= 1:
+
+        print("⚠️ Rebuilding churn labels using business logic...")
+
+        recency_threshold = rfm["Recency"].quantile(0.75)
+        freq_threshold = rfm["Frequency"].quantile(0.25)
+
         rfm["Churn"] = (
-            (rfm["Recency"] > rfm["Recency"].quantile(0.75)) |
-            (rfm["Frequency"] <= 2)
+            (rfm["Recency"] > recency_threshold) &
+            (rfm["Frequency"] < freq_threshold)
         ).astype(int)
+
+        print(f"Churn distribution:\n{rfm['Churn'].value_counts()}")
 
     y = rfm["Churn"]
     

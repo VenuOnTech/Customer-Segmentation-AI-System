@@ -103,6 +103,14 @@ def run():
             rfm["Purchase_Probability"] = rfm.get("Purchase_Probability", 0.0)
             rfm["Churn"] = rfm.get("Churn", 0)
 
+            # ==============================
+            # CHURN TRAINING (SAFE FIX)
+            # ==============================
+            if rfm["Churn"].nunique() < 2:
+                print("⚠️ Still single class → forcing churn diversity")
+
+                rfm.loc[rfm["Recency"] > rfm["Recency"].median(), "Churn"] = 1
+
             churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
 
             if churn_model is None:
