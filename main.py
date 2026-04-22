@@ -116,30 +116,39 @@ def run():
         def is_weak_explanation(exp):
             if exp in ["", None, "Not computed"]:
                 return True
-            
-            exp = str(exp)
 
-            # ❌ weak if all values ~0
-            numbers = [float(x.split(":")[1]) for x in exp.split(",") if ":" in x]
+            try:
+                values = [
+                    float(x.split(":")[1])
+                    for x in str(exp).split(",")
+                    if ":" in x
+                ]
 
-            return all(abs(n) < 0.05 for n in numbers)
+                return len(values) == 0 or all(abs(v) < 0.05 for v in values)
 
+            except:
+                return True
 
-        def generate_fallback(row):
+        def generate_smart_explanation(row):
             if row["Recency"] > 100:
-                return "Customer inactive for long period"
-            elif row["Frequency"] < 2:
-                return "Low engagement customer"
-            elif row["Monetary"] > rfm["Monetary"].mean():
-                return "High value customer"
-            else:
-                return "Moderate activity customer"
+                return "Customer inactive for a long time → high churn risk"
+
+            if row["Frequency"] < 2:
+                return "Low engagement customer → needs reactivation"
+
+            if row["Monetary"] > rfm["Monetary"].mean():
+                return "High value customer → prioritize retention"
+
+            if row["Purchase_Probability"] > 0.7:
+                return "Likely to purchase again → target with offers"
+
+            return "Moderate activity customer"
 
 
         rfm["Explanation"] = rfm["Explanation"].fillna("").astype(str)
 
         rfm["Explanation"] = rfm.apply(
-            lambda row: generate_fallback(row)
+            lambda row: generate_smart_explanation(row)
             if is_weak_explanation(row["Explanation"])
             else row["Explanation"],
             axis=1
