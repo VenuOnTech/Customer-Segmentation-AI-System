@@ -5,69 +5,78 @@ try:
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import LSTM, Dense
     from tensorflow.keras.optimizers import Adam
+    from sklearn.preprocessing import MinMaxScaler
     TF_AVAILABLE = True
 except Exception:
     TF_AVAILABLE = False
 
 
-def train_lstm_churn(rfm):
+# ==============================
+# TRAIN LSTM (BEHAVIOR MODEL)
+# ==============================
+def train_lstm_model(rfm):
 
     if not TF_AVAILABLE:
         print("⚠️ TensorFlow not available → skipping LSTM")
-        return None, {"lstm_accuracy": None}
+        return None, None
 
-    feature_cols = ["Recency", "Frequency", "Monetary"]
+    features = ["Recency", "Frequency", "Monetary"]
 
-    X = rfm[feature_cols].values
-    y = rfm["Churn"].values
+    data = rfm[features].values
 
-    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-8)
-    X = X.reshape((X.shape[0], 1, X.shape[1]))
+    scaler = MinMaxScaler()
+    data_scaled = scaler.fit_transform(data)
 
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import accuracy_score
+    X, y = [], []
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    # 🔥 Sequence creation (last 5 steps)
+    for i in range(5, len(data_scaled)):
+        X.append(data_scaled[i-5:i])
+        y.append(data_scaled[i][1])  # predict frequency (behavior signal)
+
+    X, y = np.array(X), np.array(y)
+
+    if len(X) < 10:
+        print("⚠️ Not enough data for LSTM")
+        return None, None
 
     model = Sequential([
         LSTM(32, input_shape=(X.shape[1], X.shape[2])),
-        Dense(1, activation="sigmoid")
+        Dense(1)
     ])
 
-    model.compile(
-        optimizer=Adam(learning_rate=0.001),
-        loss="binary_crossentropy",
-        metrics=["accuracy"]
-    )
+    model.compile(optimizer=Adam(learning_rate=0.001), loss="mse")
 
-    model.fit(
-        X_train,
-        y_train,
-        epochs=3,
-        batch_size=64,
-        verbose=0
-    )
+    model.fit(X, y, epochs=3, batch_size=64, verbose=0)
 
-    y_pred = (model.predict(X_test) > 0.5).astype(int)
-    acc = accuracy_score(y_test, y_pred)
+    print("✅ LSTM model trained")
 
-    print(f"LSTM Accuracy: {acc:.4f}")
-
-    return model, {"lstm_accuracy": acc}
+    return model, scaler
 
 
-def predict_lstm(model, rfm):
+# ==============================
+# PREDICT LSTM BEHAVIOR
+# ==============================
+def predict_lstm(model, scaler, rfm):
 
-    if model is None:
-        return np.zeros(len(rfm))
+    if model is None or scaler is None:
+        rfm["LSTM_Score"] = 0.0
+        return rfm
 
-    feature_cols = ["Recency", "Frequency", "Monetary"]
+    features = ["Recency", "Frequency", "Monetary"]
 
-    X = rfm[feature_cols].values
-    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-8)
-    X = X.reshape((X.shape[0], 1, X.shape[1]))
+    data = scaler.transform(rfm[features].values)
 
-    preds = model.predict(X)
-    return preds.flatten()
+    preds = []
+
+    for i in range(len(data)):
+        if i < 5:
+            preds.append(0.0)
+        else:
+            seq = data[i-5:i]
+            pred = model.predict(seq.reshape(1, 5, 3), verbose=0)[0][0]
+            preds.append(float(pred))
+
+    rfm["LSTM_Score"] = preds
+
+    return rfm
