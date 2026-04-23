@@ -11,3 +11,5 @@ setuptools>=70.0.0
 PyYAML>=6.0
 torch>=2.2.0
 plotly>=5.20.0
+fastapi
+uvicorn

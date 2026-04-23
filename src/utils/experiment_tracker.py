@@ -1,8 +1,11 @@
 import json
 import os
+from datetime import datetime
 
 def log_experiment(params, metrics, file_path="outputs/experiments.json"):
+
     experiment = {
+        "timestamp": datetime.utcnow().isoformat(),
         "params": params,
         "metrics": metrics
     }

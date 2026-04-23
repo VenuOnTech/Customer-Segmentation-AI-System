@@ -2,6 +2,7 @@ import numpy as np
 import json
 import os
 import glob
+import pandas as pd
 
 from src.data_ingestion.load_data import load_data
 from src.data_ingestion.schema_detection import detect_columns
@@ -21,6 +22,8 @@ from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
 from src.explainability.shap_explainer import generate_shap_explanations
 from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
+from src.feature_store.store import save_features
+from src.utils.experiment_tracker import log_experiment
 
 
 def run():
@@ -81,6 +84,9 @@ def run():
 
             print(f"🧠 RFM shape: {rfm.shape}")
 
+            # ✅ FEATURE STORE
+            save_features(rfm)
+
             # ==============================
             # SEGMENTATION
             # ==============================
@@ -95,8 +101,7 @@ def run():
             # PREDICTION
             # ==============================
             rfm = predict_future_purchase(rfm)
-            
-            # ✅ Normalize probability (fix 1000% issue)
+
             if "Purchase_Probability" in rfm.columns:
                 rfm["Purchase_Probability"] = rfm["Purchase_Probability"].clip(0, 1)
 
@@ -104,45 +109,48 @@ def run():
             rfm["Churn"] = rfm.get("Churn", 0)
 
             # ==============================
-            # CHURN TRAINING (SAFE FIX)
+            # CHURN TRAINING
             # ==============================
             if rfm["Churn"].nunique() < 2:
-                print("⚠️ Still single class → forcing churn diversity")
-
+                print("⚠️ Forcing churn diversity")
                 rfm.loc[rfm["Recency"] > rfm["Recency"].median(), "Churn"] = 1
 
             churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
 
             if churn_model is None:
-                print("⚠️ Churn model skipped due to single class")
+                print("⚠️ Churn model skipped")
+
             churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
 
             print(f"🤖 Churn Model Metrics: {churn_metrics}")
 
             # ==============================
-            # EXPLAINABILITY
+            # EXPLAINABILITY (MODE BASED)
             # ==============================
-            try:
-                valid_features = [col for col in feature_cols if col in rfm.columns]
+            if config.get("mode") == "full":
 
-                if not valid_features:
-                    raise ValueError("No valid features for SHAP")
+                try:
+                    valid_features = [col for col in feature_cols if col in rfm.columns]
 
-                X = rfm[valid_features].copy()
+                    if not valid_features:
+                        raise ValueError("No valid features")
 
-                explanations = generate_shap_explanations(churn_model, X)
+                    X = rfm[valid_features].copy()
 
-                if not explanations or len(explanations) == 0:
-                    raise ValueError("Empty SHAP output")
+                    explanations = generate_shap_explanations(churn_model, X)
 
-                explanations = list(explanations)[:len(rfm)]
-                explanations += [""] * (len(rfm) - len(explanations))
+                    explanations = list(explanations)[:len(rfm)]
+                    explanations += [""] * (len(rfm) - len(explanations))
 
-                rfm["Explanation"] = explanations
-                print("✅ SHAP explanations generated")
+                    rfm["Explanation"] = explanations
+                    print("✅ SHAP explanations generated")
 
-            except Exception as e:
-                print(f"⚠️ SHAP failed: {str(e)}")
+                except Exception as e:
+                    print(f"⚠️ SHAP failed: {str(e)}")
+                    rfm["Explanation"] = ""
+
+            else:
+                print("⚡ Lite mode → skipping SHAP")
                 rfm["Explanation"] = ""
 
             # ==============================
@@ -173,7 +181,7 @@ def run():
             # ==============================
             drift = False
             if "Frequency" in rfm.columns:
-                drift = detect_drift(rfm["Frequency"], rfm["Frequency"] * 1.01)
+                drift = detect_drift(rfm["Frequency"], feature_name="Frequency")
 
             if drift:
                 from src.monitoring.recalibration import recalibrate
@@ -182,38 +190,39 @@ def run():
                 recalibration_status = {"status": "not_required"}
 
             # ==============================
-            # FEEDBACK LOOP (SAFE)
+            # FEEDBACK LOOP
             # ==============================
             try:
                 feedback_df = collect_feedback()
 
-                if "Actual_Churn" in feedback_df.columns:
-                    min_len = min(len(rfm), len(feedback_df))
+                if feedback_df is not None:
 
-                    X_fb = rfm.select_dtypes(include=["number"]).iloc[:min_len]
-                    y_fb = feedback_df["Actual_Churn"].iloc[:min_len]
+                    merged = rfm.merge(feedback_df, on="CustomerID", how="inner")
 
-                    churn_model = retrain_with_feedback(churn_model, X_fb, y_fb)
+                    if len(merged) > 10:
 
-                    print("🔁 Feedback retraining done")
+                        X_fb = merged.select_dtypes(include=["number"]).drop(columns=["Actual_Churn"])
+                        y_fb = merged["Actual_Churn"]
+
+                        churn_model = retrain_with_feedback(churn_model, X_fb, y_fb)
+
+                        print("🔁 Feedback retraining done")
 
             except Exception as e:
                 print(f"⚠️ Feedback skipped: {e}")
 
             # ==============================
-            # SAVE OUTPUTS (FIXED CORE ISSUE)
+            # SAVE OUTPUTS
             # ==============================
             file_name = os.path.splitext(os.path.basename(path))[0]
 
             versioned_path = f"outputs/customer_segments_{file_name}.csv"
             latest_path = "outputs/customer_segments.csv"
 
-            # Save both
             rfm.to_csv(versioned_path, index=False)
             rfm.to_csv(latest_path, index=False)
 
             print(f"💾 Saved: {versioned_path}")
-            print(f"💾 Updated latest: {latest_path}")
 
             # ==============================
             # SAVE MODELS + LINEAGE
@@ -222,7 +231,18 @@ def run():
             log_data_lineage(data_version, latest_path)
 
             # ==============================
-            # REPORT
+            # LOG EXPERIMENT
+            # ==============================
+            log_experiment(
+                params=config,
+                metrics={
+                    "clustering": metrics,
+                    "churn": churn_metrics
+                }
+            )
+
+            # ==============================
+            # REPORT ENTRY
             # ==============================
             all_results.append({
                 "dataset": file_name,
@@ -236,25 +256,22 @@ def run():
         except Exception as e:
             print(f"❌ Error processing {path}: {str(e)}")
 
-        # ==========================================
-        # FINAL REPORT
-        # ==========================================
-        with open("outputs/final_report.json", "w") as f:
-            json.dump(all_results, f, indent=4)
+    # ==========================================
+    # FINAL REPORT (FIXED OUTSIDE LOOP ✅)
+    # ==========================================
+    with open("outputs/final_report.json", "w") as f:
+        json.dump(all_results, f, indent=4)
 
-        # ✅ Create unified output for CI/CD
-        final_output_path = "outputs/customer_segments.csv"
+    # Combine outputs
+    if all_results:
+        combined_df = pd.concat([
+            pd.read_csv(f) for f in glob.glob("outputs/customer_segments_*.csv")
+        ])
+        combined_df.to_csv("outputs/customer_segments.csv", index=False)
 
-        if all_results:
-            import pandas as pd
-            combined_df = pd.concat([
-                pd.read_csv(f) for f in glob.glob("outputs/customer_segments_*.csv")
-            ])
-            combined_df.to_csv(final_output_path, index=False)
-
-        print("\n===================================")
-        print("✅ SYSTEM COMPLETE")
-        print("===================================\n")
+    print("\n===================================")
+    print("✅ SYSTEM COMPLETE")
+    print("===================================\n")
 
 
 if __name__ == "__main__":

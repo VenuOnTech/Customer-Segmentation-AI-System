@@ -1,15 +1,21 @@
+import os
 import pandas as pd
 
-def collect_feedback(predictions_path="outputs/customer_segments.csv"):
-    df = pd.read_csv(predictions_path)
+def collect_feedback(feedback_path="data/feedback/real_feedback.csv"):
 
-    # Simulated real feedback
-    df["Actual_Churn"] = df["Churn"]
+    if not os.path.exists(feedback_path):
+        print("⚠️ No real feedback found")
+        return None
 
-    df.to_csv("outputs/feedback_data.csv", index=False)
+    df = pd.read_csv(feedback_path)
 
-    print("📥 Feedback collected")
+    required_cols = ["CustomerID", "Actual_Churn"]
 
+    if not all(col in df.columns for col in required_cols):
+        print("⚠️ Invalid feedback format")
+        return None
+
+    print("📥 Real feedback loaded")
     return df
 
 
