@@ -115,9 +115,6 @@ def run():
             # ==============================
             # CHURN TRAINING
             # ==============================
-            if rfm["Churn"].nunique() < 2:
-                print("⚠️ Forcing churn diversity")
-                rfm.loc[rfm["Recency"] > rfm["Recency"].median(), "Churn"] = 1
 
             churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
 
@@ -157,14 +154,22 @@ def run():
             # FALLBACK EXPLANATIONS
             # ==============================
             def generate_smart_explanation(row):
-                if row["Recency"] > 100:
-                    return "Customer inactive → high churn risk"
-                if row["Frequency"] < 2:
+
+                if row["Churn"] == 1 and row["Recency"] > 100:
+                    return "Inactive customer → high churn risk"
+
+                if row["Frequency"] < 3:
                     return "Low engagement → needs reactivation"
-                if row["Monetary"] > rfm["Monetary"].mean():
-                    return "High value customer → retain"
+
+                if row["Monetary"] > 5000 and row["Frequency"] > 50:
+                    return "High value loyal customer → prioritize retention"
+
                 if row["Purchase_Probability"] > 0.7:
-                    return "Likely to purchase again"
+                    return "High likelihood of repeat purchase"
+
+                if row["Churn"] == 0 and row["Frequency"] > 20:
+                    return "Active and stable customer"
+
                 return "Moderate activity customer"
 
             rfm["Explanation"] = rfm["Explanation"].fillna("").astype(str)

@@ -64,7 +64,12 @@ if df is not None and len(df) > 0:
 
     col1.metric("📊 Customers", f"{len(df):,}")
     col2.metric("🎯 Segments", df[cluster_col].nunique() if cluster_col else "N/A")
-    col3.metric("⚠️ At Risk", int((df["Churn"] == 1).sum()) if "Churn" in df else "N/A")
+    col3.metric(
+        "⚠️ At Risk",
+        int(
+            ((df["Churn"] == 1) & (df["Purchase_Probability"] < 0.4)).sum()
+        ) if "Churn" in df else "N/A"
+    )
     col4.metric("📈 Avg Purchase", f"{df['Purchase_Probability'].mean():.2%}" if "Purchase_Probability" in df else "N/A")
     col5.metric("⏱️ Avg Recency", f"{df['Recency'].mean():.1f}" if "Recency" in df else "N/A")
 
@@ -108,7 +113,10 @@ if df is not None and len(df) > 0:
 
     with tab3:
         if "Churn" in df:
-            churn_df = df[df["Churn"] == 1]
+            churn_df = df[
+                (df["Churn"] == 1) &
+                (df["Recency"] > df["Recency"].median())
+            ]
 
             if len(churn_df) == 0:
                 st.warning("⚠️ No churn customers detected")

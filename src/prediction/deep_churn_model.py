@@ -2,6 +2,11 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
+def generate_churn_labels(df):
+    return (
+        (df["Recency"] > df["Recency"].quantile(0.75)) &
+        (df["Frequency"] < df["Frequency"].median())
+    ).astype(int)
 
 def train_deep_churn(rfm):
 
@@ -14,13 +19,7 @@ def train_deep_churn(rfm):
 
         print("⚠️ Rebuilding churn labels using business logic...")
 
-        recency_threshold = rfm["Recency"].quantile(0.75)
-        freq_threshold = rfm["Frequency"].quantile(0.25)
-
-        rfm["Churn"] = (
-            (rfm["Recency"] > recency_threshold) &
-            (rfm["Frequency"] < freq_threshold)
-        ).astype(int)
+        rfm["Churn"] = generate_churn_labels(rfm)
 
         print(f"Churn distribution:\n{rfm['Churn'].value_counts()}")
 

@@ -1,7 +1,9 @@
-def predict_future_purchase(rfm):
+def predict_future_purchase(df):
 
-    rfm["Purchase_Probability"] = (
-        rfm["Frequency"] / (rfm["Recency"] + 1)
+    df["Purchase_Probability"] = (
+        (1 / (1 + df["Recency"])) * 0.5 +
+        (df["Frequency"] / (df["Frequency"].max() + 1)) * 0.3 +
+        (df["Monetary"] / (df["Monetary"].max() + 1)) * 0.2
     )
 
-    return rfm
+    return df
