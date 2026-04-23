@@ -61,9 +61,36 @@ def run():
                 continue
 
             # ==========================================
-            # STREAM SIMULATION
+            # STREAM SIMULATION (BATCH PROCESSING)
             # ==========================================
-            df = stream_data(df)
+            all_batches = []
+
+            for batch in stream_data(df):
+
+                mapping = detect_columns(batch)
+                validate_data(batch, mapping, strict=False)
+
+                batch = add_multi_source_features(batch)
+                batch = clean_data(batch, mapping)
+
+                validate_data(batch, mapping, strict=True)
+
+                temporal = add_temporal_features(batch, mapping)
+                rfm_batch = create_rfm(batch, mapping)
+                behavioral = add_behavioral_features(batch, mapping)
+
+                rfm_batch = rfm_batch.merge(behavioral, on="CustomerID", how="left")
+                rfm_batch = rfm_batch.merge(temporal, on="CustomerID", how="left")
+                rfm_batch = rfm_batch.fillna(0)
+
+                all_batches.append(rfm_batch)
+
+            rfm = pd.concat(all_batches, ignore_index=True)
+
+            # 🔥 Handle duplicates from streaming
+            rfm = rfm.groupby("CustomerID", as_index=False).sum()
+
+            print(f"🧠 Combined RFM shape after streaming: {rfm.shape}")
 
             # ==========================================
             # VALIDATION
