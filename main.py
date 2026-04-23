@@ -20,7 +20,7 @@ from src.prediction.deep_churn_model import train_deep_churn
 from src.prediction.future_prediction import predict_future_purchase
 from src.prediction.lstm_churn_model import train_lstm_churn, predict_lstm
 
-from src.streaming.stream_simulator import simulate_stream
+from src.streaming.stream_simulator import stream_data
 
 from src.monitoring.behavior_drift import detect_drift
 from src.monitoring.data_validation import validate_data
@@ -63,7 +63,7 @@ def run():
             # ==========================================
             # STREAM SIMULATION
             # ==========================================
-            df = simulate_stream(df)
+            df = stream_data(df)
 
             # ==========================================
             # VALIDATION
