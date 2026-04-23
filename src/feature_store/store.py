@@ -1,17 +1,16 @@
 import os
-import pandas as pd
 
-FEATURE_STORE_PATH = "feature_store/"
+def save_features(df):
+    try:
+        # ✅ Correct path inside outputs
+        save_dir = "outputs/feature_store"
+        os.makedirs(save_dir, exist_ok=True)
 
-def save_features(df, name="rfm_features"):
+        file_path = os.path.join(save_dir, "rfm_features_v1.csv")
 
-    os.makedirs(FEATURE_STORE_PATH, exist_ok=True)
+        df.to_csv(file_path, index=False)
 
-    version = len(os.listdir(FEATURE_STORE_PATH)) + 1
-    path = f"{FEATURE_STORE_PATH}/{name}_v{version}.csv"
+        print(f"📦 Feature store saved at: {file_path}")
 
-    df.to_csv(path, index=False)
-
-    print(f"💾 Features saved: {path}")
-
-    return path
+    except Exception as e:
+        print(f"❌ Failed to save feature store: {e}")

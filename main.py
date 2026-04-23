@@ -27,7 +27,6 @@ from src.utils.experiment_tracker import log_experiment
 
 
 def run():
-
     print("\n🚀 STARTING AI CUSTOMER SEGMENTATION PIPELINE\n")
 
     config = load_config()
@@ -79,19 +78,24 @@ def run():
 
             rfm = rfm.merge(behavioral, on="CustomerID", how="left")
             rfm = rfm.merge(temporal, on="CustomerID", how="left")
-
             rfm = rfm.fillna(0)
 
             print(f"🧠 RFM shape: {rfm.shape}")
 
-            # ✅ FEATURE STORE
+            # ==============================
+            # FEATURE STORE
+            # ==============================
             save_features(rfm)
+
+            if os.path.exists("outputs/feature_store/rfm_features_v1.csv"):
+                print("✅ Feature store saved successfully")
+            else:
+                print("❌ Feature store NOT created")
 
             # ==============================
             # SEGMENTATION
             # ==============================
             rfm, kmeans, scaler, metrics = run_kmeans(rfm, config)
-
             print(f"📊 Clustering Metrics: {metrics}")
 
             if "Final_Cluster" in rfm.columns:
@@ -121,14 +125,12 @@ def run():
                 print("⚠️ Churn model skipped")
 
             churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
-
             print(f"🤖 Churn Model Metrics: {churn_metrics}")
 
             # ==============================
-            # EXPLAINABILITY (MODE BASED)
+            # EXPLAINABILITY
             # ==============================
             if config.get("mode") == "full":
-
                 try:
                     valid_features = [col for col in feature_cols if col in rfm.columns]
 
@@ -136,7 +138,6 @@ def run():
                         raise ValueError("No valid features")
 
                     X = rfm[valid_features].copy()
-
                     explanations = generate_shap_explanations(churn_model, X)
 
                     explanations = list(explanations)[:len(rfm)]
@@ -148,7 +149,6 @@ def run():
                 except Exception as e:
                     print(f"⚠️ SHAP failed: {str(e)}")
                     rfm["Explanation"] = ""
-
             else:
                 print("⚡ Lite mode → skipping SHAP")
                 rfm["Explanation"] = ""
@@ -196,16 +196,13 @@ def run():
                 feedback_df = collect_feedback()
 
                 if feedback_df is not None:
-
                     merged = rfm.merge(feedback_df, on="CustomerID", how="inner")
 
                     if len(merged) > 10:
-
                         X_fb = merged.select_dtypes(include=["number"]).drop(columns=["Actual_Churn"])
                         y_fb = merged["Actual_Churn"]
 
                         churn_model = retrain_with_feedback(churn_model, X_fb, y_fb)
-
                         print("🔁 Feedback retraining done")
 
             except Exception as e:
@@ -252,20 +249,23 @@ def run():
                 "drift_detected": bool(drift),
                 "recalibration": recalibration_status
             })
-            # Save experiments tracking
-            with open("outputs/experiments.json", "w") as f:
-                json.dump(all_results, f, indent=4)
 
         except Exception as e:
             print(f"❌ Error processing {path}: {str(e)}")
 
     # ==========================================
-    # FINAL REPORT (FIXED OUTSIDE LOOP ✅)
+    # SAVE GLOBAL EXPERIMENTS
+    # ==========================================
+    with open("outputs/experiments.json", "w") as f:
+        json.dump(all_results, f, indent=4)
+
+    # ==========================================
+    # FINAL REPORT
     # ==========================================
     with open("outputs/final_report.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
-    # Combine outputs
+    # Combine all outputs
     if all_results:
         combined_df = pd.concat([
             pd.read_csv(f) for f in glob.glob("outputs/customer_segments_*.csv")
