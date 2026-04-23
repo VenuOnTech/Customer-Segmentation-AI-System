@@ -252,6 +252,9 @@ def run():
                 "drift_detected": bool(drift),
                 "recalibration": recalibration_status
             })
+            # Save experiments tracking
+            with open("outputs/experiments.json", "w") as f:
+                json.dump(all_results, f, indent=4)
 
         except Exception as e:
             print(f"❌ Error processing {path}: {str(e)}")

@@ -96,14 +96,25 @@ jobs:
       # ==============================
       - name: Verify outputs
         run: |
+          echo "🔍 Checking outputs..."
+
           if [ ! -f outputs/customer_segments.csv ]; then
-            echo "❌ Output missing!"
+            echo "❌ customer_segments.csv missing!"
             exit 1
           fi
 
-          echo "✅ Output generated"
-          wc -l outputs/customer_segments.csv
-          head -5 outputs/customer_segments.csv
+          if [ ! -f outputs/feature_store/rfm_features_v1.csv ]; then
+            echo "❌ rfm_features_v1.csv missing!"
+            exit 1
+          fi
+
+          if [ ! -f outputs/experiments.json ]; then
+            echo "❌ experiments.json missing!"
+            exit 1
+          fi
+
+          echo "✅ All outputs generated"
+          ls -R outputs/
 
       # ==============================
       # 🔥 CREATE FRESH RELEASE
@@ -113,13 +124,21 @@ jobs:
         with:
           tag_name: latest
           name: "Latest ML Pipeline Output"
-          files: outputs/customer_segments.csv
+          files: |
+            outputs/customer_segments.csv
+            outputs/feature_store/rfm_features_v1.csv
+            outputs/experiments.json
           body: |
             ✅ Auto-generated ML results
-
+      
             - Dataset: Online Retail
             - Pipeline: Customer Segmentation AI
             - Run: ${{ github.run_number }}
+      
+            📦 Included Artifacts:
+            - Customer Segments
+            - Feature Store (RFM)
+            - Experiment Tracking
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
