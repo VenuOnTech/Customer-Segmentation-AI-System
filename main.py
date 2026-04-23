@@ -94,7 +94,10 @@ def run():
 
             # Combine streaming results
             rfm = pd.concat(all_batches, ignore_index=True)
-            rfm = rfm.groupby("CustomerID", as_index=False).sum()
+            # ✅ SAFE AGGREGATION AFTER STREAMING
+            numeric_cols = rfm.select_dtypes(include=["number"]).columns.tolist()
+
+            rfm = rfm.groupby("CustomerID", as_index=False)[numeric_cols].sum()
 
             print(f"🧠 Combined RFM shape: {rfm.shape}")
 
