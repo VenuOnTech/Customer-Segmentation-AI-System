@@ -40,9 +40,6 @@ def run():
 
     all_results = []
 
-    # ==========================================
-    # PROCESS EACH DATASET
-    # ==========================================
     for path in dataset_paths:
 
         print(f"\n📂 Processing dataset: {path}")
@@ -108,18 +105,13 @@ def run():
 
             if "Purchase_Probability" in rfm.columns:
                 rfm["Purchase_Probability"] = rfm["Purchase_Probability"].clip(0, 1)
-
-            rfm["Purchase_Probability"] = rfm.get("Purchase_Probability", 0.0)
-            rfm["Churn"] = rfm.get("Churn", 0)
+            else:
+                rfm["Purchase_Probability"] = 0.0
 
             # ==============================
-            # CHURN TRAINING
+            # CHURN TRAINING (SOURCE OF TRUTH)
             # ==============================
-
             churn_model, churn_metrics, feature_cols = train_deep_churn(rfm)
-
-            if churn_model is None:
-                print("⚠️ Churn model skipped")
 
             churn_metrics = {k: float(v) for k, v in churn_metrics.items()}
             print(f"🤖 Churn Model Metrics: {churn_metrics}")
@@ -127,7 +119,7 @@ def run():
             # ==============================
             # EXPLAINABILITY
             # ==============================
-            if config.get("mode") == "full":
+            if config.get("mode") == "full" and churn_model is not None:
                 try:
                     valid_features = [col for col in feature_cols if col in rfm.columns]
 
@@ -151,24 +143,27 @@ def run():
                 rfm["Explanation"] = ""
 
             # ==============================
-            # FALLBACK EXPLANATIONS
+            # SMART FALLBACK EXPLANATIONS
             # ==============================
+            recency_threshold = rfm["Recency"].quantile(0.75)
+            freq_threshold = rfm["Frequency"].quantile(0.25)
+
             def generate_smart_explanation(row):
 
-                if row["Churn"] == 1 and row["Recency"] > 100:
+                if row["Churn"] == 1 and row["Recency"] > recency_threshold and row["Frequency"] < freq_threshold:
                     return "Inactive customer → high churn risk"
 
-                if row["Frequency"] < 3:
-                    return "Low engagement → needs reactivation"
-
-                if row["Monetary"] > 5000 and row["Frequency"] > 50:
+                if row["Monetary"] > rfm["Monetary"].mean() and row["Frequency"] > rfm["Frequency"].median():
                     return "High value loyal customer → prioritize retention"
 
-                if row["Purchase_Probability"] > 0.7:
+                if row["Purchase_Probability"] > 0.6:
                     return "High likelihood of repeat purchase"
 
-                if row["Churn"] == 0 and row["Frequency"] > 20:
+                if row["Churn"] == 0 and row["Frequency"] > rfm["Frequency"].median():
                     return "Active and stable customer"
+
+                if row["Frequency"] < freq_threshold:
+                    return "Low engagement → needs reactivation"
 
                 return "Moderate activity customer"
 
@@ -258,19 +253,15 @@ def run():
         except Exception as e:
             print(f"❌ Error processing {path}: {str(e)}")
 
-    # ==========================================
-    # SAVE GLOBAL EXPERIMENTS
-    # ==========================================
+    # ==============================
+    # SAVE REPORTS
+    # ==============================
     with open("outputs/experiments.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
-    # ==========================================
-    # FINAL REPORT
-    # ==========================================
     with open("outputs/final_report.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
-    # Combine all outputs
     if all_results:
         combined_df = pd.concat([
             pd.read_csv(f) for f in glob.glob("outputs/customer_segments_*.csv")
