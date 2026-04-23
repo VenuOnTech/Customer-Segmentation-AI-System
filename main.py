@@ -60,19 +60,20 @@ def run():
                 print("⚠️ Empty dataset, skipping")
                 continue
 
-            # ==========================================
-            # ⚡ SAMPLING (ONLY FOR LITE MODE)
-            # ==========================================
+            # ⚡ Lite mode sampling
             if config.get("mode") == "lite" and len(df) > 50000:
                 df = df.sample(n=50000, random_state=42)
                 print("⚡ Lite mode: using sampled dataset")
 
             # ==========================================
-            # STREAM PROCESSING (REAL-TIME SIMULATION)
+            # STREAM PROCESSING
             # ==========================================
             all_batches = []
 
             for batch in stream_data(df):
+
+                if batch is None or batch.empty:
+                    continue
 
                 mapping = detect_columns(batch)
                 validate_data(batch, mapping, strict=False)
@@ -92,9 +93,16 @@ def run():
 
                 all_batches.append(rfm_batch)
 
-            # Combine streaming results
+            if not all_batches:
+                print("⚠️ No valid batches after streaming")
+                continue
+
             rfm = pd.concat(all_batches, ignore_index=True)
-            # ✅ SAFE AGGREGATION AFTER STREAMING
+
+            if "CustomerID" not in rfm.columns:
+                raise Exception("CustomerID missing after feature engineering")
+
+            # ✅ SAFE aggregation (fixes datetime error)
             numeric_cols = rfm.select_dtypes(include=["number"]).columns.tolist()
 
             rfm = rfm.groupby("CustomerID", as_index=False)[numeric_cols].sum()
@@ -107,7 +115,7 @@ def run():
             data_version = get_data_version(df)
 
             # ==========================================
-            # AUTOENCODER FEATURES
+            # AUTOENCODER
             # ==========================================
             try:
                 rfm = generate_autoencoder_features(rfm)
@@ -116,7 +124,7 @@ def run():
                 print(f"⚠️ Autoencoder skipped: {e}")
 
             # ==========================================
-            # LSTM (ONLY FULL MODE)
+            # LSTM
             # ==========================================
             if config.get("mode") == "full":
                 try:
@@ -139,15 +147,16 @@ def run():
             # ==========================================
             rfm, kmeans, scaler_kmeans, metrics = run_kmeans(rfm, config)
 
-            if "Final_Cluster" in rfm.columns:
-                rfm["Cluster"] = rfm["Final_Cluster"]
-
             print(f"📊 Clustering Metrics: {metrics}")
 
             # ==========================================
             # PURCHASE PREDICTION
             # ==========================================
             rfm = predict_future_purchase(rfm)
+
+            if "Purchase_Probability" not in rfm.columns:
+                rfm["Purchase_Probability"] = 0
+
             rfm["Purchase_Probability"] = rfm["Purchase_Probability"].clip(0, 1)
 
             # ==========================================
@@ -159,32 +168,27 @@ def run():
             print(f"🤖 Churn Model Metrics: {churn_metrics}")
 
             # ==========================================
-            # EXPLAINABILITY (ONLY FULL MODE)
+            # EXPLAINABILITY
             # ==========================================
             if config.get("mode") == "full" and churn_model is not None:
                 try:
                     X = rfm[feature_cols]
                     rfm["Explanation"] = generate_shap_explanations(churn_model, X)
-                    print("✅ SHAP enabled")
                 except Exception as e:
                     print(f"⚠️ SHAP failed: {e}")
                     rfm["Explanation"] = ""
             else:
                 rfm["Explanation"] = ""
 
-            # ==========================================
-            # FALLBACK EXPLANATIONS
-            # ==========================================
+            # fallback explanations
             def explain(row):
-                if row["Churn"] == 1:
+                if row.get("Churn", 0) == 1:
                     return "Inactive → churn risk"
-                if row["LSTM_Score"] > 0.7:
-                    return "High engagement customer"
-                if row["Monetary"] > rfm["Monetary"].mean():
-                    return "High value customer"
-                if row["Frequency"] < rfm["Frequency"].quantile(0.25):
-                    return "Low engagement → needs attention"
-                return "Moderate customer"
+                if row.get("LSTM_Score", 0) > 0.7:
+                    return "High engagement"
+                if row.get("Monetary", 0) > rfm["Monetary"].mean():
+                    return "High value"
+                return "Moderate"
 
             rfm["Explanation"] = rfm.apply(
                 lambda row: explain(row) if row["Explanation"] == "" else row["Explanation"],
@@ -192,12 +196,12 @@ def run():
             )
 
             # ==========================================
-            # DRIFT DETECTION
+            # DRIFT
             # ==========================================
             drift = detect_drift(rfm["Frequency"], "Frequency")
 
             # ==========================================
-            # SAVE OUTPUTS
+            # SAVE
             # ==========================================
             file_name = os.path.splitext(os.path.basename(path))[0]
 
@@ -210,9 +214,6 @@ def run():
             save_models(kmeans, churn_model, scaler_kmeans)
             log_data_lineage(data_version, latest_path)
 
-            # ==========================================
-            # LOG EXPERIMENT
-            # ==========================================
             log_experiment(
                 params=config,
                 metrics={"clustering": metrics, "churn": churn_metrics}
@@ -229,9 +230,6 @@ def run():
         except Exception as e:
             print(f"❌ Error processing {path}: {str(e)}")
 
-    # ==========================================
-    # FINAL REPORT
-    # ==========================================
     with open("outputs/final_report.json", "w") as f:
         json.dump(all_results, f, indent=4)
 

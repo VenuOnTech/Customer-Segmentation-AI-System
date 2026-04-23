@@ -22,7 +22,7 @@ def run_kmeans(rfm, config):
     X = X.select_dtypes(include=["number"]).copy()
     X = X.replace([np.inf, -np.inf], 0).fillna(0)
 
-    X = apply_feature_weights(X)
+    X = apply_feature_weights(X, config)
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)

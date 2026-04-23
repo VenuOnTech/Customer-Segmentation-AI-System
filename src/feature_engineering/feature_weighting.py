@@ -1,26 +1,13 @@
-def apply_feature_weights(X):
-    """
-    Apply business-driven weights to features
-    """
+def apply_feature_weights(X, config=None):
 
-    weights = {
-        # 🔥 Core business drivers
-        "Monetary": 2.0,
-        "Frequency": 1.8,
-        "Recency": 1.5,
+    X = X.copy()  # 🔥 safety
 
-        # 🔹 Behavioral
-        "Avg_Interpurchase_Time": 1.2,
-        "Avg_Quantity": 1.2,
-        "Avg_Price": 1.2,
-
-        # 🔹 Temporal
-        "Active_Months": 1.3,
-        "Purchase_Consistency": 1.3
-    }
+    if config and "feature_weights" in config:
+        weights = config["feature_weights"]
+    else:
+        weights = {}
 
     for col in X.columns:
-        if col in weights:
-            X[col] = X[col] * weights[col]
+        X[col] = X[col] * weights.get(col, 1.0)
 
     return X
