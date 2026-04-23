@@ -1,9 +1,7 @@
-# ML Pipeline Configuration
-
 clustering:
   algorithm: "kmeans"
   n_clusters: 4
-  adaptive: true   # 🔥 NEW
+  adaptive: false   # 🔥 disable RL in CI
   random_state: 42
   n_init: 10
 
@@ -17,7 +15,7 @@ rfm:
   monetary_weight: 1.0
 
 monitoring:
-  drift_threshold: -10  # percentage change
+  drift_threshold: -10
   enable_drift_detection: true
-  
-mode: "lite"  # lite or full
+
+mode: "lite"   # 🔥 CRITICAL (switch to "full" locally)

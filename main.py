@@ -61,7 +61,14 @@ def run():
                 continue
 
             # ==========================================
-            # STREAM SIMULATION (BATCH PROCESSING)
+            # ⚡ SAMPLING (ONLY FOR LITE MODE)
+            # ==========================================
+            if config.get("mode") == "lite" and len(df) > 50000:
+                df = df.sample(n=50000, random_state=42)
+                print("⚡ Lite mode: using sampled dataset")
+
+            # ==========================================
+            # STREAM PROCESSING (REAL-TIME SIMULATION)
             # ==========================================
             all_batches = []
 
@@ -85,43 +92,19 @@ def run():
 
                 all_batches.append(rfm_batch)
 
+            # Combine streaming results
             rfm = pd.concat(all_batches, ignore_index=True)
-
-            # 🔥 Handle duplicates from streaming
             rfm = rfm.groupby("CustomerID", as_index=False).sum()
 
-            print(f"🧠 Combined RFM shape after streaming: {rfm.shape}")
+            print(f"🧠 Combined RFM shape: {rfm.shape}")
 
             # ==========================================
-            # VALIDATION
+            # DATA VERSIONING
             # ==========================================
-            mapping = detect_columns(df)
-            validate_data(df, mapping, strict=False)
-
-            df = add_multi_source_features(df)
-            df = clean_data(df, mapping)
-
-            validate_data(df, mapping, strict=True)
-
             data_version = get_data_version(df)
 
-            print(f"📊 Cleaned data shape: {df.shape}")
-
             # ==========================================
-            # FEATURE ENGINEERING
-            # ==========================================
-            temporal = add_temporal_features(df, mapping)
-            rfm = create_rfm(df, mapping)
-            behavioral = add_behavioral_features(df, mapping)
-
-            rfm = rfm.merge(behavioral, on="CustomerID", how="left")
-            rfm = rfm.merge(temporal, on="CustomerID", how="left")
-            rfm = rfm.fillna(0)
-
-            print(f"🧠 RFM shape: {rfm.shape}")
-
-            # ==========================================
-            # AUTOENCODER FEATURES (SAFE)
+            # AUTOENCODER FEATURES
             # ==========================================
             try:
                 rfm = generate_autoencoder_features(rfm)
@@ -130,17 +113,17 @@ def run():
                 print(f"⚠️ Autoencoder skipped: {e}")
 
             # ==========================================
-            # LSTM MODEL
+            # LSTM (ONLY FULL MODE)
             # ==========================================
-            try:
-                lstm_model, lstm_metrics = train_lstm_churn(rfm)
-                lstm_preds = predict_lstm(lstm_model, rfm)
-
-                rfm["LSTM_Score"] = lstm_preds
-                print("✅ LSTM predictions added")
-
-            except Exception as e:
-                print(f"⚠️ LSTM skipped: {e}")
+            if config.get("mode") == "full":
+                try:
+                    lstm_model, scaler = train_lstm_churn(rfm)
+                    rfm = predict_lstm(lstm_model, scaler, rfm)
+                    print("✅ LSTM enabled")
+                except Exception as e:
+                    print(f"⚠️ LSTM skipped: {e}")
+                    rfm["LSTM_Score"] = 0
+            else:
                 rfm["LSTM_Score"] = 0
 
             # ==========================================
@@ -162,7 +145,7 @@ def run():
             # PURCHASE PREDICTION
             # ==========================================
             rfm = predict_future_purchase(rfm)
-            rfm["Purchase_Probability"] = rfm.get("Purchase_Probability", 0).clip(0, 1)
+            rfm["Purchase_Probability"] = rfm["Purchase_Probability"].clip(0, 1)
 
             # ==========================================
             # CHURN MODEL
@@ -173,18 +156,13 @@ def run():
             print(f"🤖 Churn Model Metrics: {churn_metrics}")
 
             # ==========================================
-            # EXPLAINABILITY
+            # EXPLAINABILITY (ONLY FULL MODE)
             # ==========================================
             if config.get("mode") == "full" and churn_model is not None:
                 try:
                     X = rfm[feature_cols]
-                    explanations = generate_shap_explanations(churn_model, X)
-
-                    explanations = list(explanations)[:len(rfm)]
-                    explanations += [""] * (len(rfm) - len(explanations))
-
-                    rfm["Explanation"] = explanations
-
+                    rfm["Explanation"] = generate_shap_explanations(churn_model, X)
+                    print("✅ SHAP enabled")
                 except Exception as e:
                     print(f"⚠️ SHAP failed: {e}")
                     rfm["Explanation"] = ""
@@ -192,22 +170,17 @@ def run():
                 rfm["Explanation"] = ""
 
             # ==========================================
-            # SMART EXPLANATIONS
+            # FALLBACK EXPLANATIONS
             # ==========================================
             def explain(row):
-
                 if row["Churn"] == 1:
                     return "Inactive → churn risk"
-
                 if row["LSTM_Score"] > 0.7:
                     return "High engagement customer"
-
                 if row["Monetary"] > rfm["Monetary"].mean():
                     return "High value customer"
-
                 if row["Frequency"] < rfm["Frequency"].quantile(0.25):
                     return "Low engagement → needs attention"
-
                 return "Moderate customer"
 
             rfm["Explanation"] = rfm.apply(

@@ -7,29 +7,22 @@ from src.optimization.rl_optimizer import optimize_k_rl
 import numpy as np
 
 
-# ✅ FIX: Define evaluation function (MISSING BEFORE)
+# ==========================================
+# SAFE EVALUATION FUNCTION
+# ==========================================
 def evaluate_clustering(X, labels):
     try:
+        # ❗ Prevent crash when only 1 cluster
+        if len(set(labels)) < 2:
+            return -1
         return silhouette_score(X, labels)
     except:
         return -1
 
 
-def find_optimal_k(X_scaled, max_k=8):
-    scores = {}
-
-    for k in range(2, max_k + 1):
-        model = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = model.fit_predict(X_scaled)
-        score = silhouette_score(X_scaled, labels)
-
-        scores[k] = score
-        print(f"K={k}, Silhouette Score={score:.4f}")
-
-    best_k = max(scores, key=scores.get)
-    return best_k
-
-
+# ==========================================
+# MAIN FUNCTION
+# ==========================================
 def run_kmeans(rfm, config):
 
     # ==============================
@@ -49,57 +42,83 @@ def run_kmeans(rfm, config):
     X_scaled = scaler.fit_transform(X)
 
     # ==============================
-    # K SELECTION (FIXED RL BLOCK)
+    # K SELECTION (SAFE RL)
     # ==============================
-    if config["clustering"].get("adaptive", False):
+    adaptive = config.get("clustering", {}).get("adaptive", False)
+    mode = config.get("mode", "fast")
+
+    if adaptive and mode == "full":
+        print("🤖 Running RL optimization for K...")
 
         def evaluate_fn(k):
-            model = KMeans(n_clusters=k, random_state=42, n_init=10)
-            labels = model.fit_predict(X_scaled)
-            return evaluate_clustering(X_scaled, labels)
+            try:
+                model = KMeans(n_clusters=k, random_state=42, n_init=10)
+                labels = model.fit_predict(X_scaled)
+                return evaluate_clustering(X_scaled, labels)
+            except:
+                return -1
 
-        n_clusters = optimize_k_rl(X_scaled, evaluate_fn)
-        print(f"🤖 RL Optimized K: {n_clusters}")
+        try:
+            # ✅ SAFE LIMIT (prevents infinite RL loop)
+            n_clusters = optimize_k_rl(
+                X_scaled,
+                evaluate_fn,
+                max_steps=10   # 🔥 IMPORTANT FIX
+            )
+            print(f"🤖 RL Optimized K: {n_clusters}")
+
+        except Exception as e:
+            print(f"⚠️ RL failed: {e}")
+            n_clusters = config["clustering"].get("n_clusters", 3)
 
     else:
-        n_clusters = config["clustering"]["n_clusters"]
+        n_clusters = config.get("clustering", {}).get("n_clusters", 3)
 
     # ==============================
     # KMEANS MODEL
     # ==============================
     kmeans = KMeans(
         n_clusters=n_clusters,
-        random_state=config["clustering"]["random_state"],
-        n_init=config["clustering"]["n_init"]
+        random_state=config["clustering"].get("random_state", 42),
+        n_init=config["clustering"].get("n_init", 10)
     )
 
     kmeans_labels = kmeans.fit_predict(X_scaled)
 
     # ==============================
-    # DBSCAN MODEL
+    # OPTIONAL DBSCAN (SAFE)
     # ==============================
-    dbscan = DBSCAN(eps=0.5, min_samples=5, n_jobs=-1)
-    dbscan_labels = dbscan.fit_predict(X_scaled)
+    use_dbscan = config.get("clustering", {}).get("use_dbscan", False)
 
-    # ==============================
-    # HYBRID CLUSTERING
-    # ==============================
-    final_labels = np.where(dbscan_labels == -1, kmeans_labels, dbscan_labels)
+    if use_dbscan:
+        print("🔍 Running DBSCAN...")
+        dbscan = DBSCAN(eps=0.5, min_samples=5, n_jobs=-1)
+        dbscan_labels = dbscan.fit_predict(X_scaled)
+
+        # Hybrid logic
+        final_labels = np.where(dbscan_labels == -1, kmeans_labels, dbscan_labels)
+
+        rfm["DBSCAN_Cluster"] = dbscan_labels
+    else:
+        final_labels = kmeans_labels
 
     # ==============================
     # SAVE RESULTS
     # ==============================
     rfm["KMeans_Cluster"] = kmeans_labels
-    rfm["DBSCAN_Cluster"] = dbscan_labels
-    rfm["Cluster"] = final_labels
     rfm["Final_Cluster"] = final_labels
+    rfm["Cluster"] = final_labels
 
     # ==============================
-    # METRICS
+    # METRICS (SAFE)
     # ==============================
     try:
-        sil_score = silhouette_score(X_scaled, final_labels)
-        print(f"🔥 Final Silhouette Score: {sil_score:.4f}")
+        if len(set(final_labels)) > 1:
+            sil_score = silhouette_score(X_scaled, final_labels)
+            print(f"🔥 Final Silhouette Score: {sil_score:.4f}")
+        else:
+            sil_score = None
+            print("⚠️ Only one cluster detected")
     except:
         sil_score = None
 

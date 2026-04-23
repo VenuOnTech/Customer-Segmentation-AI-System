@@ -1,7 +1,7 @@
 import pandas as pd
 import time
 
-def stream_data(df, batch_size=5000, delay=1):
+def stream_data(df, batch_size=5000, delay=0):
     """
     Simulate streaming data in batches
     """
@@ -12,4 +12,3 @@ def stream_data(df, batch_size=5000, delay=1):
         print(f"📡 Streaming batch: {i} → {i + len(batch)}")
 
         yield batch
-        time.sleep(delay)
