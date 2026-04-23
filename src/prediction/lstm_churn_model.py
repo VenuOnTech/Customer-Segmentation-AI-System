@@ -14,7 +14,7 @@ except Exception:
 # ==============================
 # TRAIN LSTM (BEHAVIOR MODEL)
 # ==============================
-def train_lstm_model(rfm):
+def train_lstm_churn(rfm):
 
     if not TF_AVAILABLE:
         print("⚠️ TensorFlow not available → skipping LSTM")
