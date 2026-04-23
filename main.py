@@ -12,14 +12,14 @@ from src.feature_engineering.rfm_features import create_rfm
 from src.feature_engineering.multi_source_features import add_multi_source_features
 from src.feature_engineering.temporal_features import add_temporal_features
 from src.feature_engineering.behavioral_features import add_behavioral_features
+from src.feature_engineering.autoencoder_features import generate_autoencoder_features
 
 from src.segmentation.kmeans_segmentation import run_kmeans
 
 from src.prediction.deep_churn_model import train_deep_churn
 from src.prediction.future_prediction import predict_future_purchase
-from src.prediction.lstm_churn_model import train_lstm_model, predict_lstm
+from src.prediction.lstm_churn_model import train_lstm_churn, predict_lstm
 
-from src.representation.auto_encoder import train_autoencoder, encode_features
 from src.streaming.stream_simulator import simulate_stream
 
 from src.monitoring.behavior_drift import detect_drift
@@ -32,8 +32,6 @@ from src.utils.experiment_tracker import log_experiment
 from src.feature_store.store import save_features
 
 from src.explainability.shap_explainer import generate_shap_explanations
-from src.feedback.feedback_handler import collect_feedback, retrain_with_feedback
-
 from src.data_ingestion.data_versioning import get_data_version
 
 
@@ -63,12 +61,12 @@ def run():
                 continue
 
             # ==========================================
-            # STREAM SIMULATION (🔥 NEW)
+            # STREAM SIMULATION
             # ==========================================
             df = simulate_stream(df)
 
             # ==========================================
-            # SCHEMA + VALIDATION
+            # VALIDATION
             # ==========================================
             mapping = detect_columns(df)
             validate_data(df, mapping, strict=False)
@@ -96,16 +94,27 @@ def run():
             print(f"🧠 RFM shape: {rfm.shape}")
 
             # ==========================================
-            # AUTOENCODER (🔥 NEW)
+            # AUTOENCODER FEATURES (SAFE)
             # ==========================================
-            autoencoder, scaler = train_autoencoder(rfm)
-            rfm = encode_features(autoencoder, scaler, rfm)
+            try:
+                rfm = generate_autoencoder_features(rfm)
+                print("✅ Autoencoder features added")
+            except Exception as e:
+                print(f"⚠️ Autoencoder skipped: {e}")
 
             # ==========================================
-            # LSTM BEHAVIOR MODEL (🔥 NEW)
+            # LSTM MODEL
             # ==========================================
-            lstm_model, lstm_scaler = train_lstm_model(rfm)
-            rfm = predict_lstm(lstm_model, lstm_scaler, rfm)
+            try:
+                lstm_model, lstm_metrics = train_lstm_churn(rfm)
+                lstm_preds = predict_lstm(lstm_model, rfm)
+
+                rfm["LSTM_Score"] = lstm_preds
+                print("✅ LSTM predictions added")
+
+            except Exception as e:
+                print(f"⚠️ LSTM skipped: {e}")
+                rfm["LSTM_Score"] = 0
 
             # ==========================================
             # FEATURE STORE
@@ -123,10 +132,9 @@ def run():
             print(f"📊 Clustering Metrics: {metrics}")
 
             # ==========================================
-            # PREDICTION
+            # PURCHASE PREDICTION
             # ==========================================
             rfm = predict_future_purchase(rfm)
-
             rfm["Purchase_Probability"] = rfm.get("Purchase_Probability", 0).clip(0, 1)
 
             # ==========================================
@@ -164,11 +172,14 @@ def run():
                 if row["Churn"] == 1:
                     return "Inactive → churn risk"
 
-                if row.get("LSTM_Score", 0) > 0.7:
-                    return "Strong behavioral engagement"
+                if row["LSTM_Score"] > 0.7:
+                    return "High engagement customer"
 
                 if row["Monetary"] > rfm["Monetary"].mean():
                     return "High value customer"
+
+                if row["Frequency"] < rfm["Frequency"].quantile(0.25):
+                    return "Low engagement → needs attention"
 
                 return "Moderate customer"
 
@@ -181,8 +192,6 @@ def run():
             # DRIFT DETECTION
             # ==========================================
             drift = detect_drift(rfm["Frequency"], "Frequency")
-
-            recalibration_status = {"status": "not_required"}
 
             # ==========================================
             # SAVE OUTPUTS
@@ -211,8 +220,7 @@ def run():
                 "rows": int(len(rfm)),
                 "clustering": metrics,
                 "churn": churn_metrics,
-                "drift_detected": bool(drift),
-                "recalibration": recalibration_status
+                "drift_detected": bool(drift)
             })
 
         except Exception as e:

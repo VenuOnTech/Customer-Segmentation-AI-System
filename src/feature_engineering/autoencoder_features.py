@@ -1,9 +1,20 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense
+# 🔥 SAFE IMPORT
+try:
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Input, Dense
+    TF_AVAILABLE = True
+except Exception:
+    TF_AVAILABLE = False
+
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 
+
 def generate_autoencoder_features(df):
+
+    if not TF_AVAILABLE:
+        print("⚠️ TensorFlow not available → skipping autoencoder")
+        return df
 
     numeric_df = df.select_dtypes(include=["number"]).fillna(0)
 
@@ -23,9 +34,9 @@ def generate_autoencoder_features(df):
     encoder = Model(input_layer, encoded)
 
     autoencoder.compile(optimizer="adam", loss="mse")
-    autoencoder.fit(data, data, epochs=10, verbose=0)
+    autoencoder.fit(data, data, epochs=5, verbose=0)
 
-    encoded_features = encoder.predict(data)
+    encoded_features = encoder.predict(data, verbose=0)
 
     encoded_df = pd.DataFrame(
         encoded_features,
