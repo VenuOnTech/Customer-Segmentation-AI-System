@@ -1,14 +1,16 @@
-# 🎯 AI Customer Segmentation System
+# 🎯 AI Customer Segmentation & Predictive Analytics System
 
 <div align="center">
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.45%2B-red?logo=streamlit)](https://streamlit.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Enabled-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.4%2B-orange)](https://scikit-learn.org/)
-[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Enabled-green?logo=github)](https://github.com/features/actions)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-Deep_Learning-FF6F00?logo=tensorflow)](https://www.tensorflow.org/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-green?logo=github)](https://github.com/features/actions)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-**An enterprise-grade AI system for intelligent customer segmentation, churn prediction, and behavioral analysis using advanced machine learning techniques.**
+**An autonomous, enterprise-grade ML pipeline combining Reinforcement Learning, Deep Neural Networks, and Explainable AI (SHAP) for real-time customer segmentation and churn prediction.**
 
 [Live Dashboard](https://customer-segmentation-ai-system-xqev9fmhnpgwe6vp2kgz2b.streamlit.app/) • [GitHub Issues](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/issues) • [Releases](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases)
 
@@ -19,576 +21,189 @@
 ## 📚 Table of Contents
 
 - [Overview](#-overview)
-- [Key Features](#-key-features)
 - [System Architecture](#️-system-architecture)
+- [Key AI Capabilities](#-key-ai-capabilities)
 - [Quick Start](#-quick-start)
-- [Installation](#-installation)
 - [Usage Guide](#-usage-guide)
 - [Project Structure](#-project-structure)
-- [Pipeline Details](#-pipeline-details)
-- [Dashboard Features](#-dashboard-features)
-- [Model Management](#-model-management)
-- [Monitoring & Maintenance](#-monitoring--maintenance)
-- [Troubleshooting](#-troubleshooting)
-- [Performance Metrics](#-performance-metrics)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Support](#-support)
-- [Acknowledgments](#-acknowledgments)
-- [Roadmap](#-roadmap)
+- [Data Dictionary (Output)](#-data-dictionary-output)
+- [MLOps & Monitoring](#mlops)
+- [License & Support](#-license--support)
 
 ---
 
 ## 🎯 Overview
 
-The **AI Customer Segmentation System** is a comprehensive, production-ready machine learning platform that automatically segments e-commerce customers based on their purchasing behavior. Using the powerful **RFM (Recency, Frequency, Monetary)** analysis framework combined with advanced machine learning algorithms, the system provides actionable insights for targeted marketing, customer retention, and revenue optimization.
+Traditional customer segmentation relies on static, rule-based groupings. This project introduces a **Hybrid AI Architecture** that dynamically processes data streams, extracts complex behavioral patterns using Deep Learning (Autoencoders & LSTMs), optimizes clustering via Reinforcement Learning, and translates black-box predictions into human-readable insights using Explainable AI (SHAP).
 
-### What Makes This Special?
-
-✨ **End-to-End ML Pipeline** → From raw data to actionable insights  
-✨ **Automated Deployment** → GitHub Actions CI/CD with automatic releases  
-✨ **Interactive Dashboard** → Real-time visualization with Streamlit  
-✨ **Production-Ready** → Model versioning, monitoring, and drift detection  
-✨ **Explainable AI** → Human-readable explanations for every prediction  
-✨ **Enterprise-Grade** → Comprehensive testing, logging, and error handling  
-
----
-
-## 🚀 Key Features
-
-### 1. **Customer Segmentation**
-- Clusters customers into meaningful segments using K-Means algorithm
-- 4 distinct customer groups for targeted strategies
-- Automatically identifies patterns in purchasing behavior
-
-### 2. **Churn Prediction**
-- Identifies customers at risk of churning
-- Uses Random Forest classifier for high accuracy
-- Predicts churn risk based on RFM metrics and cluster membership
-
-### 3. **Future Purchase Probability**
-- Predicts likelihood of future purchases
-- Calculates engagement scores for each customer
-- Enables proactive customer engagement strategies
-
-### 4. **AI Explainability**
-- Every customer gets an explanation for their classification
-- Interpretable insights into why customers belong to their segment
-- Human-readable rules for business teams
-
-### 5. **Model Monitoring**
-- Detects behavioral drift in customer patterns
-- Alerts when models need retraining
-- Automatic model versioning and management
-
-### 6. **Interactive Dashboard**
-- Real-time visualization of segmentation results
-- Multiple analytical views (data, clusters, churn risk, explanations)
-- Download capabilities for CSV exports
+Designed with robust MLOps principles, the system features automated data validation, statistical drift monitoring, and an end-to-end CI/CD pipeline powered by GitHub Actions.
 
 ---
 
 ## 🏗️ System Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ DATA LAYER                                                  │
-│ Online Retail Dataset (GitHub Release v1.0.0-data)         │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────┐
-│ PROCESSING PIPELINE (main.py)                               │
-├─────────────────────────────────────────────────────────────┤
-│ 1. Data Ingestion → Load & Schema Detection                 │
-│ 2. Data Cleaning → Remove nulls, duplicates, errors         │
-│ 3. Feature Engineering → RFM features + Multi-source        │
-│ 4. Segmentation → K-Means clustering (4 clusters)           │
-│ 5. Churn Prediction → Random Forest classification          │
-│ 6. Future Prediction → Purchase probability scores          │
-│ 7. Explainability → Generate business-friendly rules        │
-│ 8. Monitoring → Detect behavioral drift                     │
-│ 9. Model Management → Version & save models                 │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-      ┌──────────────┴───────────────┐
-      │                              │
-┌─────▼────────────┐      ┌──────────▼────────────┐
-│ outputs/         │      │ GitHub Release        │
-│ customer_        │      │ v1.0.0-outputs-X      │
-│ segments.csv     │      │ (customer_segments)   │
-└─────┬────────────┘      └──────────┬────────────┘
-      │                              │
-      └──────────────┬───────────────┘
-                     │
-              ┌──────▼───────┐
-              │ Streamlit    │
-              │ Dashboard    │
-              │ (Live View)  │
-              └──────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. DATA INGESTION & STREAMING LAYER                                    │
+│ Simulates real-time data streaming • Validates schema • Cleans nulls   │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+┌──────────────────────────────────▼─────────────────────────────────────┐
+│ 2. DYNAMIC FEATURE ENGINEERING LAYER                                   │
+│ • Baseline: RFM (Recency, Frequency, Monetary)                         │
+│ • Behavioral & Temporal: Purchase velocity, variances, intervals       │
+│ • Deep Extraction: Neural Network Autoencoder latent features          │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+┌──────────────────────────────────▼─────────────────────────────────────┐
+│ 3. HYBRID AI DECISION ENGINE                                           │
+│ ├── Clustering: K-Means optimized autonomously by Q-Learning (RL) agent│
+│ ├── Sequential Prediction: LSTM networks predicting behavioral flow    │
+│ └── Classification: Deep Multi-Layer Perceptron (MLP) for Churn Risk   │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+┌──────────────────────────────────▼─────────────────────────────────────┐
+│ 4. MLOPS & EXPLAINABILITY LAYER                                        │
+│ ├── XAI: SHAP values translated into plain-text business logic         │
+│ ├── Monitoring: Kolmogorov-Smirnov tests for behavioral data drift     │
+│ └── Tracking: Data lineage JSON and automated Experiment logging       │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+            ┌──────────────────────┴──────────────────────┐
+┌───────────▼───────────┐                     ┌───────────▼───────────┐
+│ Streamlit UI          │                     │ FastAPI Backend       │
+│ Interactive Dashboard │                     │ REST Endpoints for    │
+│ (Visual Analytics)    │                     │ external integrations │
+└───────────────────────┘                     └───────────────────────┘
 ```
+
+## 🧠 Key AI Capabilities
+
+### 1. Reinforcement Learning Optimized Clustering
+Instead of hardcoding the number of customer segments, the system utilizes an RL agent (`rl_optimizer.py`) that explores different values of $k$ and maximizes the silhouette score to automatically find the optimal cluster boundaries.
+
+### 2. Deep Predictive Modeling (MLP & LSTM)
+- **Churn Prediction:** Uses a Multi-Layer Perceptron (`deep_churn_model.py`) to classify high-risk customers, autonomously generating business-logic labels if raw data is unlabelled.
+- **Behavioral Scoring:** An LSTM network (`lstm_churn_model.py`) processes the historical sequence of customer transactions to score future engagement trajectory.
+
+### 3. Explainable AI (SHAP)
+Black-box models are converted into transparent business rules. Using SHAP (`shap_explainer.py`), the system outputs exact textual reasons for its decisions (e.g., "Churn risk influenced by high recency & low frequency").
+
+### 4. Continuous Data Drift Monitoring
+The pipeline automatically runs two-sample Kolmogorov-Smirnov tests (`behavior_drift.py`) against historical feature stores to detect statistical shifts in customer purchasing frequencies, alerting the system when retraining is necessary.
+
+---
 
 ## 📦 Quick Start
-### For Impatient Users (30 seconds)
+
+### Prerequisites
+- Python 3.10+
+- 4GB RAM minimum (TensorFlow/PyTorch models gracefully degrade if memory is constrained).
+
+### Installation
+
 ```bash
 # 1. Clone the repository
-git clone https://github.com/VenuOnTech/Customer-Segmentation-AI-System.git  
+git clone [https://github.com/VenuOnTech/Customer-Segmentation-AI-System.git](https://github.com/VenuOnTech/Customer-Segmentation-AI-System.git)  
 cd Customer-Segmentation-AI-System
 
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Run the pipeline
-python main.py
-
-# 4. View results
-streamlit run app/dashboard.py
-```
-
-### For Cloud Deployment (No Installation)  
-
-Visit the live dashboard:
-https://customer-segmentation-ai-system-xqev9fmhnpgwe6vp2kgz2b.streamlit.app/
-
-The dashboard automatically downloads and visualizes the latest results from GitHub releases.
-
-## 💻 Installation
-### Prerequisites
-- Python 3.10 or higher
-- Git for version control
-- pip or conda for package management
-- 4GB RAM minimum (8GB recommended)  
-
-### Step 1: Clone Repository
-```bash
-git clone https://github.com/VenuOnTech/Customer-Segmentation-AI-System.git
-cd Customer-Segmentation-AI-System
-```
-### Step 2: Create Virtual Environment
-```bash
-# Using venv
+# 2. Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# OR using conda
-conda create -n segmentation python=3.10
-conda activate segmentation
-```
-### Step 3: Install Dependencies
-```bash
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
-### Step 4: Verify Installation
-```bash
-python -c "import pandas, sklearn, streamlit; print('✅ All dependencies installed')"
-```
 
-### 🎮 Usage Guide
-### Option 1: Run ML Pipeline Locally
+## 💻 Usage Guide
+
+### 1. Run the Autonomous ML Pipeline
+Executes the full end-to-end architecture (streaming, engineering, clustering, XAI, monitoring).
+
 ```bash
 python main.py
 ```
-### Output:
+Outputs generated in `outputs/` and versioned models in `models/v*/`.
 
-- outputs/customer_segments.csv - Segmentation results with predictions
-- models/v1/ - Trained models (K-Means, Churn classifier, Scaler)
-- models/metadata.json - Version tracking
+### 2. Launch the Streamlit Dashboard
+Visualize the live segmentation results, view SHAP insights, and analyze churn metrics.
 
-### Option 2: Launch Interactive Dashboard
 ```bash
 streamlit run app/dashboard.py
 ```
-Open browser to http://localhost:8501
+Access at: http://localhost:8501  
 
-Features:
+### 3. Start the FastAPI Serving Backend
+Expose the trained models as REST API endpoints for real-time integration.
 
-- 📊 Real-time customer segmentation visualization
-- 📈 Cluster distribution analysis
-- ⚠️ Churn risk identification
-- 🔍 Customer explanation explorer
+```bash
+uvicorn api.app:app --reload
+```
+Access API Docs at: http://localhost:8000/docs
 
-### Option 3: Run Tests
+4. Run the CI/CD Test Suite
 ```bash
 python tests/test_pipeline.py
 ```
-
-#### Validates:
-
-- ✅ All module imports
-- ✅ Schema detection accuracy
-- ✅ Data cleaning logic
-- ✅ RFM feature creation
-
-### Option 4: Automated Deployment (GitHub Actions)
-
-Push code to main branch → GitHub Actions automatically:
-
-- Downloads data from release
-- Runs all tests
-- Executes ML pipeline
-- Creates GitHub release with outputs
-- Updates dashboard with new results
 
 ## 📁 Project Structure
-```bash
+```plaintext
 Customer-Segmentation-AI-System/
-│
-├── 🎯 main.py                          # Entry point for ML pipeline
-├── requirements.txt                    # Python dependencies
-├── README.md                           # This file
-│
-├── 🤖 app/
-│   └── dashboard.py                    # Streamlit interactive dashboard
-│
-├── 🔧 src/                             # Core ML modules
-│   ├── data_ingestion/
-│   │   ├── load_data.py               # Load CSV/Excel files
-│   │   └── schema_detection.py        # Auto-detect column mappings
-│   │
-│   ├── preprocessing/
-│   │   └── data_cleaning.py           # Clean & validate data
-│   │
-│   ├── feature_engineering/
-│   │   ├── rfm_features.py            # Create RFM metrics
-│   │   └── multi_source_features.py   # Additional features
-│   │
-│   ├── segmentation/
-│   │   ├── kmeans_segmentation.py     # K-Means clustering
-│   │   └── dbscan_segmentation.py     # DBSCAN alternative
-│   │
-│   ├── prediction/
-│   │   ├── churn_prediction.py        # Churn risk modeling
-│   │   └── future_prediction.py       # Purchase probability
-│   │
-│   ├── explainability/
-│   │   └── shap_explainer.py          # Generate explanations
-│   │
-│   ├── monitoring/
-│   │   ├── behavior_drift.py          # Detect data drift
-│   │   └── recalibration.py           # Model retraining logic
-│   │
-│   └── model_management/
-│       ├── model_versioning.py        # Save & version models
-│       └── model_loader.py            # Load trained models
-│
-├── 📊 config/
-│   ├── system_config.yaml             # Pipeline configuration
-│   └── column_aliases.json            # Column mapping rules
-│
-├── 📈 data/
-│   ├── raw/                           # Raw data (downloaded)
-│   └── processed/                     # Processed data
-│
-├── 🤖 models/
-│   ├── metadata.json                  # Version tracking
-│   └── v1/, v2/, ...                  # Versioned models
-│
-├── 📤 outputs/
-│   └── customer_segments.csv          # Pipeline output
-│
-├── 🧪 tests/
-│   └── test_pipeline.py               # Comprehensive unit tests
-│
-├── ⚙️ .github/workflows/
-│   └── pipeline.yml                   # GitHub Actions CI/CD
-│
-├── 🎨 .streamlit/
-│   └── config.toml                    # Streamlit settings
-│
-└── 🙈 .gitignore                      # Git ignore rules
+├── 🎯 main.py                  # Core pipeline orchestrator
+├── 🤖 api/app.py               # FastAPI serving layer
+├── 📊 app/dashboard.py         # Streamlit UI
+├── ⚙️ config/                  # YAML system configs & schema aliases
+├── 📈 data/                    # Raw & processed datasets
+├── 📦 models/                  # Versioned serialized models (.pkl) & metadata
+├── 📤 outputs/                 # CSV outputs, feature stores, JSON logs
+├── 🧪 tests/                   # Unit test suite
+└── 🔧 src/                     # Core ML Modules
+    ├── data_ingestion/         # Versioning, loaders, strict schema detection
+    ├── preprocessing/          # automated cleaning and validation
+    ├── feature_engineering/    # RFM, temporal, autoencoders, behavioral
+    ├── feature_store/          # Feature persistence
+    ├── segmentation/           # RL-optimized K-Means, DBSCAN
+    ├── prediction/             # Deep MLP, LSTM, mathematical probability
+    ├── explainability/         # Global/Local SHAP explanations
+    ├── monitoring/             # KS drift detection, data lineage, quality reports
+    ├── optimization/           # Pipeline and RL optimizers
+    ├── streaming/              # Data batch stream simulator
+    └── utils/                  # Experiment tracking and config loaders
 ```
 
-## 🔄 Pipeline Details
-### Step 1: Data Ingestion
-```bash
-# Load customer transaction data
-df = load_data("data/raw/Online_Retail.xlsx")  # CSV or Excel supported
-mapping = detect_columns(df)                    # Auto-detect schema
-```
-Input: Online Retail Dataset (541,909 transactions)  
-Output: Mapped DataFrame with standardized columns
+## 📖 Data Dictionary (Output)
+When viewing outputs/customer_segments.csv or the dashboard, here is how to interpret the engineered metrics:
 
-### Step 2: Data Cleaning
-```bash
-df = clean_data(df, mapping)
-```
+| Feature | Description | Business Interpretation |
+| :--- | :--- | :--- |
+| **Recency** | Days since last purchase | High = Churn Risk. Low = Active. |
+| **Frequency** | Total number of purchases | High = Loyal customer. |
+| **Monetary** | Total lifetime spend | High = VIP/Whale. |
+| **Avg_Interval** | Average days between visits | Measures routine. Low = Frequent shopper. |
+| **Std_Quantity** | Variance in basket size | High = Erratic buyer. Low = Predictable routine. |
+| **Purchase_Velocity**| Purchases / Customer Lifetime | Speed of engagement. |
+| **LSTM_Score** | Sequential neural network output | High = Sequence predicts strong future engagement. |
+| **Purchase_Prob.** | Algorithmic likelihood of return | 0.0 to 1.0 scoring metric. |
+| **Churn** | Deep Learning risk classification | 1 = At Risk. 0 = Safe. |
+| **Explanation** | Explainable AI (SHAP) text | Plain English reasoning for the model's decision. |
 
-Operations:
+## <a id="mlops"></a>🛡️ MLOps & Monitoring
 
-- Remove rows with missing CustomerID, InvoiceDate, Quantity, UnitPrice
-- Filter out negative quantities and prices
-- Remove duplicate transactions
+This project utilizes advanced MLOps practices:
 
-Result: 392,692 clean transactions (72.5% retention)
+* **Automated CI/CD:** Push to `main` triggers GitHub Actions (`.github/workflows/main.yml`) which runs tests, executes the pipeline, and auto-publishes the models/data to GitHub Releases.
+* **Graceful Degradation:** The pipeline automatically detects environment constraints (e.g., missing TensorFlow in CI) and gracefully falls back to core features without crashing.
+* **Data Lineage:** Every run logs `outputs/data_lineage.json` linking the exact data hash to the exact output file.
+* **Experiment Tracking:** Hyperparameters, silhouette scores, and neural network accuracies are automatically logged to `outputs/experiments.json`.
 
-### Step 3: Feature Engineering - RFM Analysis
-```bash
-rfm = create_rfm(df, mapping)
-rfm = add_multi_source_features(rfm)
-```
+---
 
-### RFM Metrics:
+## 📄 License & Support
 
-- Recency (R): Days since last purchase (0-365 days)
-- Frequency (F): Number of purchases (1-100+ purchases)
-- Monetary (M): Total spending ($50-$5,000+)
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Result: 4,338 unique customer profiles with RFM scores
-
-### Step 4: Customer Segmentation
-```bash
-rfm, kmeans, scaler = run_kmeans(rfm)
-```
-
-Algorithm: K-Means Clustering (k=4)  
-Features Scaled: StandardScaler normalization  
-Result: 4 distinct customer segments
-
-- Cluster 0: High-value loyal customers
-- Cluster 1: Active regular buyers
-- Cluster 2: At-risk customers
-- Cluster 3: New/dormant customers
-
-### Step 5: Churn Prediction
-```bash
-churn_model = train_churn(rfm)
-```
-
-Algorithm: Random Forest Classifier  
-Churn Definition: Recency > 90 days = 1 (churned), else 0  
-Features: Recency, Frequency, Monetary, Cluster  
-Output: Churn probability for each customer  
-
-### Step 6: Purchase Probability
-```bash
-rfm = predict_future_purchase(rfm)
-```
-Formula: Frequency / (Recency + 1)  
-Range: 0.0 to 1.0 probability score  
-Interpretation: Higher values = more likely to purchase soon  
-
-### Step 7: Explainability
-```bash
-rfm["Explanation"] = rfm.apply(explain_customer, axis=1)
-```
-
-Example Explanation:  
-
-- "Inactive customer (>90 days), Low purchase frequency"
-- "Loyal, active customer"
-- "Low spending (<$50), Moderate frequency"
-
-### Step 8: Model Versioning
-```bash
-save_models(kmeans, churn_model, scaler)
-```
-
-Saves:
-
-- K-Means model → models/v1/kmeans_model.pkl
-- Churn model → models/v1/churn_model.pkl
-- Scaler → models/v1/scaler.pkl
-- Metadata → models/metadata.json
-
-## 📊 Dashboard Features
-### 1. Overview Metrics
-```bash
-📊 Total Customers: 4,338
-🎯 Number of Segments: 4
-⚠️ At-Risk Customers: 1,245
-📈 Avg Purchase Probability: 0.45
-```
-### 2. Customer Data Tab
-- Searchable, sortable customer table
-- All segmentation results visible
-- CSV download functionality
-
-### 3. Cluster Analysis Tab
-- Cluster distribution bar chart
-- Statistics per cluster
-- Cluster composition insights
-
-### 4. Churn Risk Tab
-- List of at-risk customers (Recency > 90 days)
-- Churn indicators and metrics
-- Export at-risk list
-
-### 5. Explanations Tab
-- Random sample of 10 customer explanations
-- Why each customer is in their segment
-- Business-friendly language
-
-## 🤖 Model Management
-### Model Versioning
-
-Models are automatically versioned with metadata:
-```bash
-{
-  "latest_version": 1,
-  "versions": {
-    "1": {
-      "date": "2026-04-05",
-      "data_size": 392692,
-      "customers": 4338,
-      "status": "production"
-    }
-  }
-}
-```
-
-### Loading Models
-```bash
-from src.model_management.model_loader import load_latest
-
-kmeans, churn_model, scaler, version = load_latest()
-```
-
-### Model Performance
-
-| Model | Type | Accuracy | Status |
-|-------|------|----------|--------|
-| K-Means | Clustering | N/A | ✅ Active |
-| Churn RF | Classification | ~85% | ✅ Active |
-| Scaler | Preprocessing | N/A | ✅ Active |  
-
-## 📈 Monitoring & Maintenance
-### Drift Detection
-
-The system monitors for behavioral drift:
-```bash
-if detect_drift(old_mean, new_mean):
-    print("Drift detected → retraining needed")
-```
-Trigger: >10% change in customer behavior metrics
-
-### Retraining
-
-Automatic retraining triggered by:
-
-- Scheduled: Monthly on first of month
-- Manual: Push to main branch with [retrain] tag
-- Drift: Automatic detection of behavior changes
-
-### Logging
-
-All operations logged to:
-
-- Console output during execution
-- GitHub Actions workflow logs
-- Pipeline artifacts (30-day retention)  
-
-## 🐛 Troubleshooting
-### Issue: "No segmentation results found" on Dashboard
-
-Solution: Ensure GitHub Actions pipeline has run successfully  
-
-- Go to Actions tab
-- Check latest workflow run status
-- Verify GitHub Release exists with customer_segments.csv  
-
-### Issue: Import Errors
-
-Solution: Reinstall dependencies
-```bash
-pip install --upgrade -r requirements.txt
-```
-### Issue: Data File Not Found
-
-Solution: Pipeline will auto-download from release
-```bash
-# Or manually download
-python -c "from main import run; run()"
-```
-
-### Issue: Out of Memory
-
-Solution: Process file in chunks or use lite mode
-```bash
-# In config/system_config.yaml
-mode: "lite"  # Reduces feature calculations
-```
-
-## 📊 Performance Metrics
-
-### Data Processing
-
-| Metric | Value |
-|--------|-------|
-| Input Records | 541,909 |
-| Clean Records | 392,692 |
-| Data Retention | 72.5% |
-| Processing Time | ~35 seconds |
-
-### Segmentation
-
-| Metric | Value |
-|--------|-------|
-| Total Customers | 4,338 |
-| Cluster 0 | 1,087 customers |
-| Cluster 1 | 1,095 customers |
-| Cluster 2 | 1,078 customers |
-| Cluster 3 | 1,078 customers |
-
-### Model Performance
-
-| Model | Metric | Value |
-|-------|--------|-------|
-| K-Means | Silhouette Score | 0.58 |
-| Churn RF | Accuracy | 85.2% |
-| Churn RF | Precision | 0.82 |
-| Churn RF | Recall | 0.79 |  
-
-## 🤝 Contributing
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch (git checkout -b feature/AmazingFeature)
-3. Commit changes (git commit -m 'Add AmazingFeature')
-4. Push to branch (git push origin feature/AmazingFeature)
-5. Open Pull Request
-
-### Development Setup
-```bash
-# Install dev dependencies
-pip install -r requirements.txt
-
-# Run tests
-python tests/test_pipeline.py
-
-# Code quality checks
-flake8 src/
-black src/
-```
-
-### Areas for Contribution
-- 🔄 Alternative segmentation algorithms (DBSCAN, hierarchical)
-- 📈 Advanced feature engineering
-- 🎨 Dashboard improvements
-- 📚 Documentation enhancements
-- 🧪 Additional test coverage  
-
-## 📄 License
-
-This project is licensed under the MIT License - see LICENSE file for details.
-
-## 📞 Support
-- Issues & Questions: GitHub Issues
-- Email: venudadi11@gmail.com
-- Documentation: Full API docs available in code docstrings
-
-## 🙏 Acknowledgments
-- Dataset: Online Retail Dataset (UCI Machine Learning Repository)
-- Libraries: Pandas, Scikit-learn, Streamlit, Joblib
-- Inspired by: Industry best practices in ML ops and customer analytics
-
-## 📈 Roadmap
-### Version 2.0 (Planned)
-- Multi-algorithm ensemble segmentation
-- Real-time prediction API
-- Advanced visualization (3D plots)
-- Custom segmentation rules engine
-- Email integration for notifications
-- A/B testing framework
-- Deep learning segmentation (TensorFlow)  
-<div align="center">
+* **Issues & Questions:** Please use the GitHub Issues tab.
+* **Contact:** venudadi11@gmail.com
 
 ⭐ Star this repo if you find it useful!
 
